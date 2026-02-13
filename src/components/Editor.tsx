@@ -7,6 +7,7 @@ import {
   Maximize2,
   Minimize2,
   WrapText,
+  Github,
 } from "lucide-react";
 import { Theme } from "../App";
 
@@ -560,6 +561,26 @@ export const Editor: React.FC<EditorProps> = ({ code, onChange, theme }) => {
           >
             {theme === "dark" ? "Eclipse Emerald" : "Aurora Light"}
           </span>
+          <div
+            className="w-[1px] h-3"
+            style={{ background: "var(--border-subtle)" }}
+          />
+          <a
+            href="https://github.com/mahesh2-lab"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-[10px] font-mono transition-colors duration-200"
+            style={{ color: "var(--text-muted)" }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--text-secondary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--text-muted)";
+            }}
+          >
+            <Github className="w-3 h-3" />
+            <span>@mahesh2-lab</span>
+          </a>
         </div>
       </div>
     </div>
