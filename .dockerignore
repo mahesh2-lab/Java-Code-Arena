@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+*.md
+.vscode
+.idea
+__pycache__
+*.pyc
+.agent
+.gemini
