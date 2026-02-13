@@ -2,9 +2,12 @@ import React, { useState } from "react";
 import {
   Settings,
   Play,
-  Square,
   Zap,
   Loader2,
+  Maximize,
+  Minimize,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Theme } from "../App";
 
@@ -14,6 +17,10 @@ interface NavbarProps {
   onRun: () => void;
   isRunning: boolean;
   isReady: boolean;
+  showConsole: boolean;
+  onToggleConsole: () => void;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }
 
 const THEMES: { key: Theme; label: string; swatch: string }[] = [
@@ -27,19 +34,23 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRun,
   isRunning,
   isReady,
+  showConsole,
+  onToggleConsole,
+  isFullscreen,
+  onToggleFullscreen,
 }) => {
   const [showSettings, setShowSettings] = useState(false);
 
   return (
     <nav
-      className="h-14 flex items-center justify-between px-5 shrink-0 relative z-50"
+      className="h-14 flex items-center justify-between px-5 shrink-0 relative z-50 responsive-navbar"
       style={{
         background: "var(--bg-navbar)",
         borderBottom: "1px solid var(--bg-navbar-border)",
       }}
     >
       {/* Left: Logo */}
-      <div className="flex items-center gap-2.5 min-w-[140px]">
+      <div className="flex items-center gap-2.5">
         <Zap className="w-5 h-5" style={{ color: "var(--logo-accent-from)" }} />
         <span
           className="text-[15px] font-semibold tracking-tight"
@@ -50,35 +61,41 @@ export const Navbar: React.FC<NavbarProps> = ({
         </span>
       </div>
 
-      {/* Center: Run + Stop Buttons */}
-      <div className="flex items-center gap-2.5">
+      {/* Center: Run Button */}
+      <div className="flex items-center gap-2">
         {/* Run Button */}
         <button
           id="run-button"
           onClick={onRun}
           disabled={!isReady || isRunning}
+          title={isRunning ? "Running..." : "Run Code"}
+          className="flex items-center gap-2.5 px-5 py-2 rounded-md text-sm font-semibold transition-all duration-150 shadow-sm"
           style={{
             background:
               !isReady || isRunning
                 ? "var(--btn-disabled-bg)"
-                : "var(--btn-run-bg)",
+                : "var(--logo-accent-from)",
             color:
-              !isReady || isRunning
-                ? "var(--btn-disabled-text)"
-                : "var(--btn-run-text)",
+              !isReady || isRunning ? "var(--btn-disabled-text)" : "#000000",
+            border: "none",
             cursor: !isReady || isRunning ? "not-allowed" : "pointer",
+            boxShadow:
+              !isReady || isRunning ? "none" : "0 1px 2px rgba(0, 0, 0, 0.1)",
           }}
-          className="flex items-center gap-2 px-5 py-[7px] rounded-md text-sm font-semibold transition-all duration-200 active:scale-[0.97]"
           onMouseEnter={(e) => {
             if (isReady && !isRunning) {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                "var(--btn-run-hover)";
+              const el = e.currentTarget as HTMLButtonElement;
+              el.style.background = "var(--status-text)";
+              el.style.transform = "translateY(-1px)";
+              el.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.15)";
             }
           }}
           onMouseLeave={(e) => {
             if (isReady && !isRunning) {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                "var(--btn-run-bg)";
+              const el = e.currentTarget as HTMLButtonElement;
+              el.style.background = "var(--logo-accent-from)";
+              el.style.transform = "translateY(0)";
+              el.style.boxShadow = "0 1px 2px rgba(0, 0, 0, 0.1)";
             }
           }}
         >
@@ -87,46 +104,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <Play className="w-4 h-4 fill-current" />
           )}
-          <span>{isRunning ? "Running..." : "Run"}</span>
-        </button>
-
-        {/* Stop Button */}
-        <button
-          id="stop-button"
-          disabled={!isRunning}
-          style={{
-            background: isRunning
-              ? "var(--btn-stop-bg)"
-              : "var(--btn-disabled-bg)",
-            color: isRunning
-              ? "var(--btn-stop-text)"
-              : "var(--btn-disabled-text)",
-            cursor: isRunning ? "pointer" : "not-allowed",
-          }}
-          className="flex items-center gap-2 px-4 py-[7px] rounded-md text-sm font-medium transition-all duration-200 active:scale-[0.97]"
-          onMouseEnter={(e) => {
-            if (isRunning) {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                "var(--btn-stop-hover)";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (isRunning) {
-              (e.currentTarget as HTMLButtonElement).style.background =
-                "var(--btn-stop-bg)";
-            }
-          }}
-        >
-          <Square className="w-3.5 h-3.5 fill-current" />
-          <span>Stop</span>
+          <span>{isRunning ? "Running" : "Run"}</span>
         </button>
       </div>
 
       {/* Right: Status + Settings */}
-      <div className="flex items-center gap-4 min-w-[140px] justify-end">
+      <div className="flex items-center gap-2 sm:gap-4 justify-end">
         {/* Status Indicator */}
         <div
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full"
+          className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-full"
           style={{
             background: "var(--bg-surface)",
             border: "1px solid var(--border-subtle)",
@@ -143,16 +129,74 @@ export const Navbar: React.FC<NavbarProps> = ({
             />
           </div>
           <span
-            className="text-[11px] font-medium tracking-wide uppercase"
+            className="text-[11px] font-medium tracking-wide uppercase hidden sm:inline"
             style={{
-              color: isReady
-                ? "var(--status-text)"
-                : "var(--text-muted)",
+              color: isReady ? "var(--status-text)" : "var(--text-muted)",
             }}
           >
             {isReady ? "Ready" : "Loading..."}
           </span>
         </div>
+
+        {/* Console Toggle Button */}
+        <button
+          onClick={onToggleConsole}
+          title={showConsole ? "Hide console" : "Show console"}
+          className="p-2 rounded-lg transition-all duration-200"
+          style={{
+            background: "transparent",
+            color: showConsole ? "var(--text-secondary)" : "var(--text-muted)",
+            border: "1px solid transparent",
+          }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget as HTMLButtonElement;
+            el.style.background = "var(--bg-surface-hover)";
+            el.style.color = "var(--text-secondary)";
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget as HTMLButtonElement;
+            el.style.background = "transparent";
+            el.style.color = showConsole
+              ? "var(--text-secondary)"
+              : "var(--text-muted)";
+          }}
+        >
+          {showConsole ? (
+            <Eye className="w-[18px] h-[18px]" />
+          ) : (
+            <EyeOff className="w-[18px] h-[18px]" />
+          )}
+        </button>
+
+        {/* Fullscreen Toggle Button */}
+        <button
+          onClick={onToggleFullscreen}
+          title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          className="p-2 rounded-lg transition-all duration-200"
+          style={{
+            background: "transparent",
+            color: isFullscreen ? "var(--text-secondary)" : "var(--text-muted)",
+            border: "1px solid transparent",
+          }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget as HTMLButtonElement;
+            el.style.background = "var(--bg-surface-hover)";
+            el.style.color = "var(--text-secondary)";
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget as HTMLButtonElement;
+            el.style.background = "transparent";
+            el.style.color = isFullscreen
+              ? "var(--text-secondary)"
+              : "var(--text-muted)";
+          }}
+        >
+          {isFullscreen ? (
+            <Minimize className="w-[18px] h-[18px]" />
+          ) : (
+            <Maximize className="w-[18px] h-[18px]" />
+          )}
+        </button>
 
         {/* Settings / Theme Picker */}
         <div className="relative">
@@ -161,7 +205,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => setShowSettings(!showSettings)}
             className="p-2 rounded-lg transition-all duration-200"
             style={{
-              background: "var(--bg-surface)",
+              background: "transparent",
               color: "var(--text-muted)",
               border: "1px solid transparent",
             }}
@@ -169,13 +213,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               const el = e.currentTarget as HTMLButtonElement;
               el.style.background = "var(--bg-surface-hover)";
               el.style.color = "var(--text-secondary)";
-              el.style.borderColor = "var(--border-subtle)";
             }}
             onMouseLeave={(e) => {
               const el = e.currentTarget as HTMLButtonElement;
-              el.style.background = "var(--bg-surface)";
+              el.style.background = "transparent";
               el.style.color = "var(--text-muted)";
-              el.style.borderColor = "transparent";
             }}
           >
             <Settings className="w-[18px] h-[18px]" />

@@ -1,14 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import MonacoEditor, { OnMount, BeforeMount } from "@monaco-editor/react";
-import {
-  FileCode2,
-  Copy,
-  Check,
-  Maximize2,
-  Minimize2,
-  WrapText,
-  Github,
-} from "lucide-react";
+import { FileCode2, Copy, Check, WrapText, Github } from "lucide-react";
 import { Theme } from "../App";
 
 interface EditorProps {
@@ -251,7 +243,6 @@ export const Editor: React.FC<EditorProps> = ({ code, onChange, theme }) => {
   const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
   const [copied, setCopied] = useState(false);
   const [wordWrap, setWordWrap] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const lineCount = code.split("\n").length;
   const charCount = code.length;
@@ -288,24 +279,10 @@ export const Editor: React.FC<EditorProps> = ({ code, onChange, theme }) => {
     }
   }, [copied]);
 
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isFullscreen) {
-        setIsFullscreen(false);
-      }
-    };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [isFullscreen]);
-
   const toggleWordWrap = () => {
     const next = !wordWrap;
     setWordWrap(next);
     editorRef.current?.updateOptions({ wordWrap: next ? "on" : "off" });
-  };
-
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
   };
 
   const IconBtn = ({
@@ -342,17 +319,8 @@ export const Editor: React.FC<EditorProps> = ({ code, onChange, theme }) => {
       className="flex flex-col h-full"
       style={{
         background: "var(--bg-editor)",
-        ...(isFullscreen && {
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 9999,
-        }),
       }}
     >
-      {" "}
       {/* ── Top Tab Bar ── */}
       <div
         className="px-3 py-2 flex items-center gap-2 shrink-0"
@@ -401,16 +369,6 @@ export const Editor: React.FC<EditorProps> = ({ code, onChange, theme }) => {
               className="w-3.5 h-3.5"
               style={{ opacity: wordWrap ? 1 : 0.5 }}
             />
-          </IconBtn>
-          <IconBtn
-            onClick={toggleFullscreen}
-            title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-          >
-            {isFullscreen ? (
-              <Minimize2 className="w-3.5 h-3.5" />
-            ) : (
-              <Maximize2 className="w-3.5 h-3.5" />
-            )}
           </IconBtn>
           <IconBtn onClick={handleCopy} title="Copy code">
             {copied ? (
@@ -506,13 +464,13 @@ export const Editor: React.FC<EditorProps> = ({ code, onChange, theme }) => {
       </div>
       {/* ── Bottom Status Bar ── */}
       <div
-        className="px-4 py-1.5 flex items-center justify-between shrink-0"
+        className="px-4 py-1.5 flex items-center justify-between shrink-0 responsive-status-bar"
         style={{
           background: "var(--bg-panel-header)",
           borderTop: "1px solid var(--border-subtle)",
         }}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <span
             className="text-[11px] font-mono"
             style={{ color: "var(--text-muted)" }}
@@ -524,33 +482,33 @@ export const Editor: React.FC<EditorProps> = ({ code, onChange, theme }) => {
             style={{ background: "var(--border-subtle)" }}
           />
           <span
-            className="text-[11px] font-mono"
+            className="text-[11px] font-mono hidden sm:inline"
             style={{ color: "var(--text-muted)" }}
           >
             {lineCount} lines
           </span>
           <span
-            className="text-[11px] font-mono"
+            className="text-[11px] font-mono hidden sm:inline"
             style={{ color: "var(--text-muted)" }}
           >
             {charCount} chars
           </span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <span
-            className="text-[11px] font-mono"
+            className="text-[11px] font-mono hidden md:inline"
             style={{ color: "var(--text-muted)" }}
           >
             UTF-8
           </span>
           <span
-            className="text-[11px] font-mono"
+            className="text-[11px] font-mono hidden md:inline"
             style={{ color: "var(--text-muted)" }}
           >
             Spaces: 4
           </span>
           <span
-            className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+            className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded hidden lg:inline"
             style={{
               color: theme === "dark" ? "#10b981" : "#16a34a",
               background:
@@ -562,7 +520,7 @@ export const Editor: React.FC<EditorProps> = ({ code, onChange, theme }) => {
             {theme === "dark" ? "Eclipse Emerald" : "Aurora Light"}
           </span>
           <div
-            className="w-[1px] h-3"
+            className="w-[1px] h-3 hidden sm:block"
             style={{ background: "var(--border-subtle)" }}
           />
           <a
@@ -579,7 +537,7 @@ export const Editor: React.FC<EditorProps> = ({ code, onChange, theme }) => {
             }}
           >
             <Github className="w-3 h-3" />
-            <span>@mahesh2-lab</span>
+            <span className="hidden sm:inline">@mahesh2-lab</span>
           </a>
         </div>
       </div>

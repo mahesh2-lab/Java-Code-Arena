@@ -23,6 +23,12 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(
     () => (localStorage.getItem("app_theme") as Theme) || "dark",
   );
+  const [showConsole, setShowConsole] = useState<boolean>(true);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [editorWidth, setEditorWidth] = useState<number>(
+    () => Number(localStorage.getItem("editor_width")) || 55,
+  );
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   const { isReady } = useCheerpJ();
 
@@ -30,6 +36,65 @@ export default function App() {
     setTheme(newTheme);
     localStorage.setItem("app_theme", newTheme);
   };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  // Handle divider dragging
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const mainElement = document.querySelector("main");
+      if (!mainElement) return;
+
+      const rect = mainElement.getBoundingClientRect();
+      const offsetX = e.clientX - rect.left;
+      const percentage = (offsetX / rect.width) * 100;
+
+      // Clamp between 20% and 80%
+      const clampedPercentage = Math.max(20, Math.min(80, percentage));
+      setEditorWidth(clampedPercentage);
+      localStorage.setItem("editor_width", clampedPercentage.toString());
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    } else {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
 
   const log = useCallback(
     (text: string, type: "info" | "success" | "error" = "info") => {
@@ -156,30 +221,70 @@ export default function App() {
         onRun={handleRun}
         isRunning={isRunning}
         isReady={isReady}
+        showConsole={showConsole}
+        onToggleConsole={() => setShowConsole(!showConsole)}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={toggleFullscreen}
       />
 
       {/* Main Content: Editor (Left) | Divider | Console (Right) */}
-      <main className="flex flex-1 overflow-hidden">
+      <main className="flex flex-1 overflow-hidden responsive-main">
         {/* Left: Code Editor Panel */}
-        <div className="flex flex-col min-h-0" style={{ flex: "1.2 1 0%" }}>
+        <div
+          className="flex flex-col min-h-0 responsive-editor"
+          style={{
+            width: showConsole ? `${editorWidth}%` : "100%",
+            flexShrink: 0,
+          }}
+        >
           <Editor code={code} onChange={handleCodeChange} theme={theme} />
         </div>
 
-        {/* Divider — clean solid line */}
-        <div
-          className="theme-divider shrink-0"
-          style={{ width: "1px" }}
-        />
+        {showConsole && (
+          <>
+            {/* Resizable Divider */}
+            <div
+              className="theme-divider shrink-0 responsive-divider group"
+              style={{
+                width: "5px",
+                cursor: "col-resize",
+                position: "relative",
+                background: isDragging ? "var(--divider-color)" : "transparent",
+              }}
+              onMouseDown={() => setIsDragging(true)}
+            >
+              <div
+                className="absolute inset-y-0 left-1/2 -translate-x-1/2"
+                style={{
+                  width: "1px",
+                  background: "var(--divider-color)",
+                }}
+              />
+              <div
+                className="absolute inset-y-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                style={{
+                  background: "var(--divider-color)",
+                }}
+              />
+            </div>
 
-        {/* Right: Console Output Panel */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <Console
-            output={output}
-            executionTime={execTime}
-            onClear={() => setOutput([])}
-            theme={theme}
-          />
-        </div>
+            {/* Right: Console Output Panel */}
+            <div
+              className="flex flex-col min-h-0 responsive-console"
+              style={{
+                width: `${100 - editorWidth}%`,
+                flexShrink: 0,
+              }}
+            >
+              <Console
+                output={output}
+                executionTime={execTime}
+                onClear={() => setOutput([])}
+                theme={theme}
+              />
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
