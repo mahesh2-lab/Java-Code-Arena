@@ -8,6 +8,7 @@ import {
   Minimize,
   Eye,
   EyeOff,
+  Star,
 } from "lucide-react";
 import { Theme } from "../App";
 import { useIsMobile } from "../hooks/use-mobile";
@@ -71,14 +72,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={onRun}
           disabled={!isReady || isRunning}
           title={isRunning ? "Running..." : "Run Code"}
-          className={`flex items-center justify-center font-semibold transition-all duration-150 shadow-sm ${isMobile
-              ? "rounded-full"
-              : "gap-2.5 rounded-md text-sm px-5 py-2"
-            }`}
+          className={`flex items-center justify-center font-semibold transition-all duration-150 shadow-sm ${
+            isMobile ? "rounded-full" : "gap-2.5 rounded-md text-sm px-5 py-2"
+          }`}
           style={{
-            ...(isMobile
-              ? { width: "34px", height: "34px", padding: 0 }
-              : {}),
+            ...(isMobile ? { width: "34px", height: "34px", padding: 0 } : {}),
             background:
               !isReady || isRunning
                 ? "var(--btn-disabled-bg)"
@@ -108,9 +106,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           }}
         >
           {isRunning ? (
-            <Loader2 className={isMobile ? "w-3.5 h-3.5 animate-spin-slow" : "w-4 h-4 animate-spin-slow"} />
+            <Loader2
+              className={
+                isMobile
+                  ? "w-3.5 h-3.5 animate-spin-slow"
+                  : "w-4 h-4 animate-spin-slow"
+              }
+            />
           ) : (
-            <Play className={isMobile ? "w-3.5 h-3.5 fill-current" : "w-4 h-4 fill-current"} />
+            <Play
+              className={
+                isMobile ? "w-3.5 h-3.5 fill-current" : "w-4 h-4 fill-current"
+              }
+            />
           )}
           {!isMobile && <span>{isRunning ? "Running" : "Run"}</span>}
         </button>
@@ -148,6 +156,38 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         )}
 
+        {/* Give a Star Button */}
+        <a
+          href="https://github.com/mahesh2-lab/JavaRena"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Star us on GitHub"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all duration-200 text-sm font-medium"
+          style={{
+            background: "var(--bg-surface)",
+            color: "var(--text-secondary)",
+            border: "1px solid var(--border-subtle)",
+            textDecoration: "none",
+          }}
+          onMouseEnter={(e) => {
+            const el = e.currentTarget as HTMLAnchorElement;
+            el.style.background = "var(--bg-surface-hover)";
+            el.style.color = "var(--logo-accent-from)";
+            el.style.transform = "translateY(-1px)";
+            el.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.1)";
+          }}
+          onMouseLeave={(e) => {
+            const el = e.currentTarget as HTMLAnchorElement;
+            el.style.background = "var(--bg-surface)";
+            el.style.color = "var(--text-secondary)";
+            el.style.transform = "translateY(0)";
+            el.style.boxShadow = "none";
+          }}
+        >
+          <Star className="w-4 h-4" />
+          {!isMobile && <span>Star</span>}
+        </a>
+
         {/* Console Toggle Button - Desktop only */}
         {!isMobile && (
           <button
@@ -156,7 +196,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             className="p-2 rounded-lg transition-all duration-200"
             style={{
               background: "transparent",
-              color: showConsole ? "var(--text-secondary)" : "var(--text-muted)",
+              color: showConsole
+                ? "var(--text-secondary)"
+                : "var(--text-muted)",
               border: "1px solid transparent",
             }}
             onMouseEnter={(e) => {
