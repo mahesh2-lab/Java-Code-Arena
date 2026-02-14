@@ -121,11 +121,11 @@ export const Console: React.FC<ConsoleProps> = ({
             <div className="flex flex-col items-center justify-center h-full gap-3 select-none">
               <Terminal
                 className="w-10 h-10"
-                style={{ color: "#fff" }}
+                style={{ color: "var(--text-muted)" }}
               />
               <p
                 className="text-xs font-medium tracking-wider uppercase"
-                style={{ color: "white" }}
+                style={{ color: "var(--text-secondary)" }}
               >
                 No output yet
               </p>
