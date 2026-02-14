@@ -3,6 +3,7 @@ import { Navbar } from "./components/NavBar";
 import { Editor } from "./components/Editor";
 import { Console, LogEntry } from "./components/Console";
 import { useCheerpJ } from "./hooks/useCheerpJ";
+import { useIsMobile } from "./hooks/use-mobile";
 
 const DEFAULT_CODE = `public class Main {
     public static void main(String[] args) {
@@ -29,7 +30,11 @@ export default function App() {
     () => Number(localStorage.getItem("editor_width")) || 55,
   );
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [mobileActiveTab, setMobileActiveTab] = useState<"editor" | "console">(
+    "editor",
+  );
 
+  const isMobile = useIsMobile();
   const { isReady } = useCheerpJ();
 
   const handleThemeChange = (newTheme: Theme) => {
@@ -126,6 +131,11 @@ export default function App() {
   const handleRun = useCallback(async () => {
     if (!isReady || isRunning) return;
 
+    // Auto-switch to console on mobile when running code
+    if (isMobile) {
+      setMobileActiveTab("console");
+    }
+
     setIsRunning(true);
     setExecTime(null);
     setOutput([]);
@@ -184,7 +194,7 @@ export default function App() {
       setExecTime(Math.round(end - start));
       setIsRunning(false);
     }
-  }, [isReady, isRunning, code, log, serverReady]);
+  }, [isReady, isRunning, code, log, serverReady, isMobile]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -227,62 +237,142 @@ export default function App() {
         onToggleFullscreen={toggleFullscreen}
       />
 
-      {/* Main Content: Editor (Left) | Divider | Console (Right) */}
+      {/* Main Content: Mobile Tab View or Desktop Split View */}
       <main className="flex flex-1 overflow-hidden responsive-main">
-        {/* Left: Code Editor Panel */}
-        <div
-          className="flex flex-col min-h-0 responsive-editor"
-          style={{
-            width: showConsole ? `${editorWidth}%` : "100%",
-            flexShrink: 0,
-          }}
-        >
-          <Editor code={code} onChange={handleCodeChange} theme={theme} />
-        </div>
-
-        {showConsole && (
-          <>
-            {/* Resizable Divider */}
+        {isMobile ? (
+          // ═══════════════════════════════════════════════════════
+          // Mobile Layout: Tabbed Interface
+          // ═══════════════════════════════════════════════════════
+          <div className="flex flex-col w-full h-full">
+            {/* Tab Navigation */}
             <div
-              className="theme-divider shrink-0 responsive-divider group"
+              className="flex gap-0 shrink-0 border-b"
               style={{
-                width: "5px",
-                cursor: "col-resize",
-                position: "relative",
-                background: isDragging ? "var(--divider-color)" : "transparent",
+                background: "var(--bg-panel-header)",
+                borderColor: "var(--border-subtle)",
               }}
-              onMouseDown={() => setIsDragging(true)}
             >
-              <div
-                className="absolute inset-y-0 left-1/2 -translate-x-1/2"
+              <button
+                onClick={() => setMobileActiveTab("editor")}
+                className="flex-1 py-3 px-4 text-sm font-medium transition-colors"
                 style={{
-                  width: "1px",
-                  background: "var(--divider-color)",
+                  color:
+                    mobileActiveTab === "editor"
+                      ? "var(--logo-accent-from)"
+                      : "var(--text-muted)",
+                  borderBottom:
+                    mobileActiveTab === "editor"
+                      ? "2px solid var(--logo-accent-from)"
+                      : "none",
+                  background: "transparent",
                 }}
-              />
-              <div
-                className="absolute inset-y-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              >
+                Editor
+              </button>
+              <button
+                onClick={() => setMobileActiveTab("console")}
+                className="flex-1 py-3 px-4 text-sm font-medium transition-colors"
                 style={{
-                  background: "var(--divider-color)",
+                  color:
+                    mobileActiveTab === "console"
+                      ? "var(--logo-accent-from)"
+                      : "var(--text-muted)",
+                  borderBottom:
+                    mobileActiveTab === "console"
+                      ? "2px solid var(--logo-accent-from)"
+                      : "none",
+                  background: "transparent",
                 }}
-              />
+              >
+                Output
+              </button>
             </div>
 
-            {/* Right: Console Output Panel */}
+            {/* Tab Content */}
+            <div className="flex-1 overflow-hidden">
+              {mobileActiveTab === "editor" ? (
+                <div className="h-full w-full">
+                  <Editor
+                    code={code}
+                    onChange={handleCodeChange}
+                    theme={theme}
+                  />
+                </div>
+              ) : (
+                <div className="h-full w-full">
+                  <Console
+                    output={output}
+                    executionTime={execTime}
+                    onClear={() => setOutput([])}
+                    theme={theme}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          // ═══════════════════════════════════════════════════════
+          // Desktop Layout: Side-by-Side with Draggable Divider
+          // ═══════════════════════════════════════════════════════
+          <>
+            {/* Left: Code Editor Panel */}
             <div
-              className="flex flex-col min-h-0 responsive-console"
+              className="flex flex-col min-h-0 responsive-editor"
               style={{
-                width: `${100 - editorWidth}%`,
+                width: showConsole ? `${editorWidth}%` : "100%",
                 flexShrink: 0,
               }}
             >
-              <Console
-                output={output}
-                executionTime={execTime}
-                onClear={() => setOutput([])}
-                theme={theme}
-              />
+              <Editor code={code} onChange={handleCodeChange} theme={theme} />
             </div>
+
+            {showConsole && (
+              <>
+                {/* Resizable Divider */}
+                <div
+                  className="theme-divider shrink-0 responsive-divider group"
+                  style={{
+                    width: "5px",
+                    cursor: "col-resize",
+                    position: "relative",
+                    background: isDragging
+                      ? "var(--divider-color)"
+                      : "transparent",
+                  }}
+                  onMouseDown={() => setIsDragging(true)}
+                >
+                  <div
+                    className="absolute inset-y-0 left-1/2 -translate-x-1/2"
+                    style={{
+                      width: "1px",
+                      background: "var(--divider-color)",
+                    }}
+                  />
+                  <div
+                    className="absolute inset-y-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    style={{
+                      background: "var(--divider-color)",
+                    }}
+                  />
+                </div>
+
+                {/* Right: Console Output Panel */}
+                <div
+                  className="flex flex-col min-h-0 responsive-console"
+                  style={{
+                    width: `${100 - editorWidth}%`,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Console
+                    output={output}
+                    executionTime={execTime}
+                    onClear={() => setOutput([])}
+                    theme={theme}
+                  />
+                </div>
+              </>
+            )}
           </>
         )}
       </main>

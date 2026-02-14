@@ -275,6 +275,28 @@
   button {
     min-height: 44px !important;
   }
+
+  /* Mobile-specific Monaco editor adjustments */
+  .monaco-editor {
+    font-size: 12px !important;
+  }
+
+  .monaco-editor .lines-content {
+    padding-left: 2px !important;
+  }
+
+  /* Improve console text readability on mobile */
+  .console-output {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Tab styling */
+  button[role="tab"] {
+    font-size: 13px;
+    padding: 10px !important;
+    min-height: 44px !important;
+  }
 }
 
 /* Tablet devices */

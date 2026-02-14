@@ -10,6 +10,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { Theme } from "../App";
+import { useIsMobile } from "../hooks/use-mobile";
 
 interface NavbarProps {
   theme: Theme;
@@ -40,6 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleFullscreen,
 }) => {
   const [showSettings, setShowSettings] = useState(false);
+  const isMobile = useIsMobile();
 
   return (
     <nav
@@ -69,7 +71,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={onRun}
           disabled={!isReady || isRunning}
           title={isRunning ? "Running..." : "Run Code"}
-          className="flex items-center gap-2.5 px-5 py-2 rounded-md text-sm font-semibold transition-all duration-150 shadow-sm"
+          className={`flex items-center gap-2.5 rounded-md text-sm font-semibold transition-all duration-150 shadow-sm ${
+            isMobile ? "p-2" : "px-5 py-2"
+          }`}
           style={{
             background:
               !isReady || isRunning
@@ -104,7 +108,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : (
             <Play className="w-4 h-4 fill-current" />
           )}
-          <span>{isRunning ? "Running" : "Run"}</span>
+          {!isMobile && <span>{isRunning ? "Running" : "Run"}</span>}
         </button>
       </div>
 
