@@ -30,6 +30,7 @@ export default function Playground() {
   const [isError, setIsError] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
   const [theme] = useState<Theme>("dark");
+  const [stdinInput, setStdinInput] = useState<string>("");
 
   const { toast } = useToast();
   const createSnippet = useCreateSnippet();
@@ -220,6 +221,8 @@ export default function Playground() {
               executionTime={executionTime}
               onClear={() => setOutput([])}
               theme={theme}
+              stdinInput={stdinInput}
+              onStdinChange={setStdinInput}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

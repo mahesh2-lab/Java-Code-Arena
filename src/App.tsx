@@ -33,6 +33,7 @@ export default function App() {
   const [mobileActiveTab, setMobileActiveTab] = useState<"editor" | "console">(
     "editor",
   );
+  const [stdinInput, setStdinInput] = useState<string>("");
 
   const isMobile = useIsMobile();
   const { isReady } = useCheerpJ();
@@ -164,7 +165,7 @@ export default function App() {
       const response = await fetch(`/api/compile`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, stdin: stdinInput }),
       });
 
       const result = await response.json();
@@ -194,7 +195,7 @@ export default function App() {
       setExecTime(Math.round(end - start));
       setIsRunning(false);
     }
-  }, [isReady, isRunning, code, log, serverReady, isMobile]);
+  }, [isReady, isRunning, code, log, serverReady, isMobile, stdinInput]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -305,6 +306,8 @@ export default function App() {
                     executionTime={execTime}
                     onClear={() => setOutput([])}
                     theme={theme}
+                    stdinInput={stdinInput}
+                    onStdinChange={setStdinInput}
                   />
                 </div>
               )}
@@ -369,6 +372,8 @@ export default function App() {
                     executionTime={execTime}
                     onClear={() => setOutput([])}
                     theme={theme}
+                    stdinInput={stdinInput}
+                    onStdinChange={setStdinInput}
                   />
                 </div>
               </>

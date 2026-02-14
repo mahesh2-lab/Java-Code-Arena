@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from "react";
-import { Trash2, Terminal, ChevronRight } from "lucide-react";
+import React, { useRef, useEffect, useState } from "react";
+import { Trash2, Terminal, ChevronRight, Keyboard, ChevronDown, ChevronUp } from "lucide-react";
 import { FlickeringGrid } from "./ui/flickering-grid";
 import { Theme } from "../App";
 
@@ -14,6 +14,8 @@ interface ConsoleProps {
   executionTime: number | null;
   onClear: () => void;
   theme: Theme;
+  stdinInput: string;
+  onStdinChange: (value: string) => void;
 }
 
 export const Console: React.FC<ConsoleProps> = ({
@@ -21,8 +23,11 @@ export const Console: React.FC<ConsoleProps> = ({
   executionTime,
   onClear,
   theme,
+  stdinInput,
+  onStdinChange,
 }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [showStdin, setShowStdin] = useState<boolean>(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -96,6 +101,111 @@ export const Console: React.FC<ConsoleProps> = ({
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
+      </div>
+
+      {/* Stdin Input Area */}
+      <div
+        className="shrink-0"
+        style={{
+          borderBottom: "1px solid var(--border-subtle)",
+        }}
+      >
+        {/* Stdin Toggle Header */}
+        <button
+          onClick={() => setShowStdin(!showStdin)}
+          className="w-full flex items-center gap-2 px-4 py-2 text-xs transition-colors duration-200"
+          style={{
+            background: "var(--bg-surface)",
+            color: "var(--text-muted)",
+            border: "none",
+            cursor: "pointer",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-surface-hover)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-surface)";
+          }}
+        >
+          <Keyboard className="w-3.5 h-3.5" style={{ color: "var(--accent-terminal)" }} />
+          <span className="font-semibold uppercase tracking-[0.1em]" style={{ fontFamily: "'Outfit', sans-serif" }}>
+            Stdin Input
+          </span>
+          {stdinInput && (
+            <span
+              className="px-1.5 py-0.5 rounded-full text-[10px] font-mono"
+              style={{
+                background: "var(--bg-surface-active)",
+                color: "var(--status-text)",
+              }}
+            >
+              {stdinInput.split("\n").length} line{stdinInput.split("\n").length > 1 ? "s" : ""}
+            </span>
+          )}
+          <span className="ml-auto">
+            {showStdin ? (
+              <ChevronUp className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" />
+            )}
+          </span>
+        </button>
+
+        {/* Stdin Textarea */}
+        {showStdin && (
+          <div className="px-4 py-2" style={{ background: "var(--bg-panel-header)" }}>
+            <textarea
+              value={stdinInput}
+              onChange={(e) => onStdinChange(e.target.value)}
+              placeholder="Enter input values here (one per line for multiple inputs)..."
+              rows={3}
+              className="w-full rounded-md px-3 py-2 text-xs font-mono resize-y focus:outline-none transition-colors duration-200"
+              style={{
+                background: "var(--bg-editor)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-subtle)",
+                minHeight: "60px",
+                maxHeight: "120px",
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+              onFocus={(e) => {
+                (e.currentTarget as HTMLTextAreaElement).style.borderColor = "var(--accent-terminal)";
+              }}
+              onBlur={(e) => {
+                (e.currentTarget as HTMLTextAreaElement).style.borderColor = "var(--border-subtle)";
+              }}
+            />
+            <div className="flex items-center justify-between mt-1.5">
+              <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+                Provide input for Scanner / System.in — each line is a separate input
+              </p>
+              {stdinInput && (
+                <button
+                  onClick={() => onStdinChange("")}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium transition-all duration-200"
+                  style={{
+                    background: "var(--bg-surface)",
+                    color: "var(--text-muted)",
+                    border: "1px solid var(--border-subtle)",
+                  }}
+                  onMouseEnter={(e) => {
+                    const el = e.currentTarget as HTMLButtonElement;
+                    el.style.background = "var(--bg-surface-hover)";
+                    el.style.color = "var(--text-secondary)";
+                  }}
+                  onMouseLeave={(e) => {
+                    const el = e.currentTarget as HTMLButtonElement;
+                    el.style.background = "var(--bg-surface)";
+                    el.style.color = "var(--text-muted)";
+                  }}
+                >
+                  <Trash2 className="w-2.5 h-2.5" />
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Console Output Area with FlickeringGrid background */}

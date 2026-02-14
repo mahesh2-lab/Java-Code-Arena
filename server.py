@@ -5,6 +5,7 @@ import subprocess
 import json
 import tempfile
 import shutil
+import time
 from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -87,21 +88,25 @@ def find_java():
         return False
 
 
-def compile_java(source_code):
-    """Compile Java source code"""
+def compile_java(source_code, stdin_input=""):
+    """Compile and run Java source code with optional stdin input"""
     if not find_java():
+        print("[ERROR] Java compiler (javac) not found")
         return {"success": False, "error": "Java compiler (javac) not found on this system"}
 
     try:
         # Create temporary directory
         temp_dir = tempfile.mkdtemp()
         source_file = Path(temp_dir) / "Main.java"
+        print(f"[LOG] Created temp dir: {temp_dir}")
 
         # Write source code to file
         source_file.write_text(source_code)
+        print(f"[LOG] Source code written ({len(source_code)} chars)")
 
         # Compile using detected Java path
         compile_cmd = [JAVAC_PATH, str(source_file)]
+        print(f"[LOG] Compiling: {' '.join(compile_cmd)}")
         result = subprocess.run(
             compile_cmd,
             capture_output=True,
@@ -110,15 +115,26 @@ def compile_java(source_code):
         )
 
         if result.returncode != 0:
+            print(f"[ERROR] Compilation failed:\n{result.stderr}")
             return {
                 "success": False,
                 "error": result.stderr or "Compilation failed"
             }
 
+        print("[LOG] Compilation successful")
+
         # Run the compiled class using detected Java path
         run_cmd = [JAVA_PATH, "-cp", temp_dir, "Main"]
+        has_stdin = bool(stdin_input)
+        print(f"[LOG] Running: {' '.join(run_cmd)}")
+        if has_stdin:
+            print(f"[LOG] Stdin input provided ({len(stdin_input)} chars): {repr(stdin_input[:100])}")
+        else:
+            print("[LOG] No stdin input provided")
+
         result = subprocess.run(
             run_cmd,
+            input=stdin_input if stdin_input else None,
             capture_output=True,
             text=True,
             timeout=10,
@@ -128,8 +144,15 @@ def compile_java(source_code):
         output = result.stdout
         error = result.stderr
 
+        print(f"[LOG] Execution finished (exit code: {result.returncode})")
+        if output:
+            print(f"[LOG] Stdout: {repr(output[:200])}")
+        if error:
+            print(f"[LOG] Stderr: {repr(error[:200])}")
+
         # Cleanup
         shutil.rmtree(temp_dir)
+        print("[LOG] Temp dir cleaned up")
 
         return {
             "success": True,
@@ -139,8 +162,30 @@ def compile_java(source_code):
         }
 
     except subprocess.TimeoutExpired:
-        return {"success": False, "error": "Execution timeout (10s limit)"}
+        # Cleanup temp dir on timeout
+        try:
+            shutil.rmtree(temp_dir)
+        except:
+            pass
+
+        # Check if the code needs stdin input but none was provided
+        needs_input = any(keyword in source_code for keyword in [
+            "Scanner", "System.in", "BufferedReader", "InputStreamReader",
+            "nextInt", "nextLine", "nextDouble", "nextFloat", "readLine"
+        ])
+
+        if needs_input and not stdin_input:
+            print("[ERROR] Timeout - code requires stdin input but none was provided")
+            return {
+                "success": False,
+                "error": "This program requires user input (Scanner/System.in detected). Please provide input in the 'Stdin Input' panel below the console before running.",
+                "needs_input": True
+            }
+        else:
+            print("[ERROR] Execution timed out (10s limit)")
+            return {"success": False, "error": "Execution timeout (10s limit)"}
     except Exception as e:
+        print(f"[ERROR] Exception: {str(e)}")
         return {"success": False, "error": str(e)}
 
 # API Routes
@@ -160,18 +205,36 @@ def health():
 
 @app.route("/api/compile", methods=["POST"])
 def compile_endpoint():
-    """Compile Java source code"""
+    """Compile and run Java source code"""
     try:
         data = request.get_json()
         source_code = data.get("code", "")
+        stdin_input = data.get("stdin", "")
+
+        print(f"\n{'='*50}")
+        print(f"[API] /api/compile received")
+        print(f"[API] Code length: {len(source_code)} chars")
+        print(f"[API] Stdin received: {repr(stdin_input) if stdin_input else '(empty)'}")
+        print(f"[API] Request keys: {list(data.keys())}")
+        print(f"{'='*50}")
 
         if not source_code:
+            print("[API] ERROR: No code provided")
             return jsonify({"success": False, "error": "No code provided"}), 400
 
-        result = compile_java(source_code)
+        result = compile_java(source_code, stdin_input)
+
+        print(f"[API] Response: success={result.get('success')}")
+        if result.get('output'):
+            print(f"[API] Output: {repr(result['output'][:200])}")
+        if result.get('error'):
+            print(f"[API] Error: {repr(result['error'][:200])}")
+        print(f"{'='*50}\n")
+
         return jsonify(result)
 
     except Exception as e:
+        print(f"[API] EXCEPTION: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -212,22 +275,161 @@ def serve(path):
             }), 404
 
 
+def _boot_step(label, value, delay=0.15):
+    """Print a single boot step with animation."""
+    # ANSI colors
+    GREEN = "\033[92m"
+    CYAN = "\033[96m"
+    DIM = "\033[2m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+    padded_label = label.ljust(40, " ")
+    sys.stdout.write(f"  {DIM}[    ]{RESET} {padded_label}")
+    sys.stdout.flush()
+    time.sleep(delay)
+    sys.stdout.write(f"\r  {GREEN}[ ✓  ]{RESET} {padded_label} {CYAN}{BOLD}{value}{RESET}\n")
+    sys.stdout.flush()
+
+
+def _boot_step_fail(label, value, delay=0.15):
+    """Print a failing boot step."""
+    RED = "\033[91m"
+    DIM = "\033[2m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+    padded_label = label.ljust(40, " ")
+    sys.stdout.write(f"  {DIM}[    ]{RESET} {padded_label}")
+    sys.stdout.flush()
+    time.sleep(delay)
+    sys.stdout.write(f"\r  {RED}[ ✗  ]{RESET} {padded_label} {RED}{BOLD}{value}{RESET}\n")
+    sys.stdout.flush()
+
+
+def _get_java_version():
+    """Try to get JVM version string."""
+    try:
+        result = subprocess.run(
+            [JAVA_PATH, "-version"],
+            capture_output=True, text=True, timeout=5
+        )
+        # java -version prints to stderr
+        ver = result.stderr.strip().split("\n")[0] if result.stderr else "Unknown"
+        return ver
+    except Exception:
+        return "Not found"
+
+
+def _get_react_version():
+    """Read React version from package.json."""
+    try:
+        pkg_path = os.path.join(os.path.dirname(__file__), "package.json")
+        with open(pkg_path, "r") as f:
+            pkg = json.load(f)
+        return pkg.get("dependencies", {}).get("react", "Unknown")
+    except Exception:
+        return "Unknown"
+
+
+def _get_vite_version():
+    """Read Vite version from package.json."""
+    try:
+        pkg_path = os.path.join(os.path.dirname(__file__), "package.json")
+        with open(pkg_path, "r") as f:
+            pkg = json.load(f)
+        return pkg.get("devDependencies", {}).get("vite", "Unknown")
+    except Exception:
+        return "Unknown"
+
+
 if __name__ == "__main__":
-    # Check if dist folder exists
+    # ── ANSI color codes ──
+    CYAN = "\033[96m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    DIM = "\033[2m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
+    MAGENTA = "\033[95m"
+
+    # ── ASCII art banner ──
+    print()
+    print(f"{CYAN}╔══════════════════════════════════════════════════════════════════════╗{RESET}")
+    print(f"{CYAN}║                                                                      ║{RESET}")
+    print(f"{CYAN}║{RESET}  {GREEN}{BOLD}██╗ █████╗ ██╗   ██╗ █████╗ ██████╗ ███████╗███╗   ██╗ █████╗      {RESET} {CYAN}║{RESET}")
+    print(f"{CYAN}║{RESET}  {GREEN}{BOLD}██║██╔══██╗██║   ██║██╔══██╗██╔══██╗██╔════╝████╗  ██║██╔══██╗     {RESET} {CYAN}║{RESET}")
+    print(f"{CYAN}║{RESET}  {GREEN}{BOLD}██║███████║██║   ██║███████║██████╔╝█████╗  ██╔██╗ ██║███████║     {RESET} {CYAN}║{RESET}")
+    print(f"{CYAN}║{RESET}  {GREEN}{BOLD}██║██╔══██║╚██╗ ██╔╝██╔══██║██╔══██╗██╔══╝  ██║╚██╗██║██╔══██║     {RESET}{CYAN} ║{RESET}")
+    print(f"{CYAN}║{RESET}  {GREEN}{BOLD}██║██║  ██║ ╚████╔╝ ██║  ██║██║  ██║███████╗██║ ╚████║██║  ██║     {RESET}{CYAN} ║{RESET}")
+    print(f"{CYAN}║{RESET}  {GREEN}{BOLD}╚═╝╚═╝  ╚═╝  ╚═══╝  ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚═╝  ╚═╝     {RESET}{CYAN} ║{RESET}")
+    print(f"{CYAN}║                                                                      ║{RESET}")
+    print(f"{CYAN}╚══════════════════════════════════════════════════════════════════════╝{RESET}")
+    print()
+
+    # ── Boot header ──
+    print(f"  {YELLOW}{BOLD}[BOOT]{RESET} {DIM}JavaRena v1.0 — Summoning Protocol Initiated{RESET}")
+    print()
+
+    # ── Pre-flight: check dist folder ──
     if not os.path.exists("dist"):
-        print("\nFrontend not built yet!")
-        print("Run this first: npm run build")
-        print("Then start the server again with: python server.py\n")
+        _boot_step_fail("Locating built frontend", "dist/ not found")
+        print(f"\n  {YELLOW}Frontend not built yet!{RESET}")
+        print(f"  Run this first: {BOLD}npm run build{RESET}")
+        print(f"  Then start the server again with: {BOLD}python server.py{RESET}\n")
         sys.exit(1)
 
-    # Find and cache Java availability
-    JAVA_AVAILABLE = find_java()
-    if not JAVA_AVAILABLE:
-        print("WARNING: Java compiler (javac) not found!")
-        print("Please install Java Development Kit (JDK)")
-    else:
-        print("[OK] Java compiler found and ready")
+    # ── Step 1: Detect OS ──
+    os_label = f"{SYSTEM}"
+    if IS_WINDOWS:
+        os_label = f"Windows ({platform.release()})"
+    elif IS_LINUX:
+        os_label = "Linux"
+    elif IS_MAC:
+        os_label = "macOS"
+    _boot_step("Detecting host OS", os_label)
 
-    print("Starting unified server on http://localhost:5000")
-    print("Serving React frontend + Java Compiler API\n")
-    app.run(debug=False, host="0.0.0.0", port=5000)
+    # ── Step 2: Find javac ──
+    JAVA_AVAILABLE = find_java()
+    if JAVA_AVAILABLE:
+        _boot_step("Locating javac binary", JAVAC_PATH)
+    else:
+        _boot_step_fail("Locating javac binary", "NOT FOUND")
+
+    # ── Step 3: JVM version ──
+    if JAVA_AVAILABLE:
+        jvm_ver = _get_java_version()
+        _boot_step("Verifying JVM heartbeat", jvm_ver)
+    else:
+        _boot_step_fail("Verifying JVM heartbeat", "Skipped (no Java)")
+
+    # ── Step 4: Flask server ──
+    _boot_step("Raising Flask server from the void", "Port 5000")
+
+    # ── Step 5: Monaco + React ──
+    react_ver = _get_react_version()
+    _boot_step("Mounting Monaco Editor grimoire", f"React {react_ver}")
+
+    # ── Step 6: Vite proxy ──
+    vite_ver = _get_vite_version()
+    _boot_step("Binding frontend to backend", f"Vite {vite_ver} proxy locked")
+
+    # ── Step 7: Classloader warmth ──
+    _boot_step("Warming the classloader", "Ready")
+
+    # ── Final status ──
+    print()
+    print(f"  {GREEN}{BOLD}[SYSTEM]{RESET} {BOLD}The Arena is open.{RESET}")
+    print(f"  {DIM}[SYSTEM] May your semicolons be plentiful, and your NullPointers few.{RESET}")
+    print()
+
+    if not JAVA_AVAILABLE:
+        print(f"  {YELLOW}{BOLD}⚠  WARNING:{RESET}{YELLOW} Java compiler (javac) not found!{RESET}")
+        print(f"  {YELLOW}   Please install Java Development Kit (JDK){RESET}")
+        print()
+
+    print(f"  {MAGENTA}{BOLD}>>> Listening on http://localhost:5000{RESET}")
+    print()
+
+    from waitress import serve
+    serve(app, host="0.0.0.0", port=5000)
