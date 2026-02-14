@@ -76,7 +76,7 @@ COPY pyproject.toml requirements.txt ./
 RUN python3 -m venv /app/venv
 ENV PATH="/app/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir flask flask-cors
+    pip install --no-cache-dir -r requirements.txt
 
 # ── Copy the Python server ──────────────────────────────
 COPY server.py ./
