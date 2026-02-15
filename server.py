@@ -470,79 +470,79 @@ def get_share(share_id):
         }), 500
 
 
-@app.route("/api/share/image", methods=["POST"])
-def generate_share_image():
-    """Generate a code image"""
-    try:
-        # Check rate limit
-        if not check_rate_limit():
-            return jsonify({
-                "success": False,
-                "error": "Rate limit exceeded. Please try again later."
-            }), 429
+# @app.route("/api/share/image", methods=["POST"])
+# def generate_share_image():
+#     """Generate a code image"""
+#     try:
+#         # Check rate limit
+#         if not check_rate_limit():
+#             return jsonify({
+#                 "success": False,
+#                 "error": "Rate limit exceeded. Please try again later."
+#             }), 429
 
-        data = request.get_json()
-        code = data.get("code", "")
-        output = data.get("output", "")
+#         data = request.get_json()
+#         code = data.get("code", "")
+#         output = data.get("output", "")
 
-        if not code or not code.strip():
-            return jsonify({
-                "success": False,
-                "error": "Code cannot be empty"
-            }), 400
+#         if not code or not code.strip():
+#             return jsonify({
+#                 "success": False,
+#                 "error": "Code cannot be empty"
+#             }), 400
 
-        if len(code) > 50000:
-            return jsonify({
-                "success": False,
-                "error": "Code too large (max 50KB)"
-            }), 400
+#         if len(code) > 50000:
+#             return jsonify({
+#                 "success": False,
+#                 "error": "Code too large (max 50KB)"
+#             }), 400
 
-        # Generate image
-        img = generate_image(code, output)
+#         # Generate image
+#         img = generate_image(code, output)
 
-        if not img:
-            return jsonify({
-                "success": False,
-                "error": "Failed to generate image"
-            }), 500
+#         if not img:
+#             return jsonify({
+#                 "success": False,
+#                 "error": "Failed to generate image"
+#             }), 500
 
-        # Generate unique filename
-        image_id = generate_share_id()
-        image_filename = f"{image_id}.png"
-        image_path = os.path.join(SHARE_IMAGES_DIR, image_filename)
+#         # Generate unique filename
+#         image_id = generate_share_id()
+#         image_filename = f"{image_id}.png"
+#         image_path = os.path.join(SHARE_IMAGES_DIR, image_filename)
 
-        # Save image
-        img.save(image_path, "PNG", optimize=True, quality=85)
+#         # Save image
+#         img.save(image_path, "PNG", optimize=True, quality=85)
 
-        # Calculate expiration (30 days)
-        expires_at = datetime.now() + timedelta(days=30)
+#         # Calculate expiration (30 days)
+#         expires_at = datetime.now() + timedelta(days=30)
 
-        # Store in database (for cleanup)
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+#         # Store in database (for cleanup)
+#         conn = sqlite3.connect(DB_PATH)
+#         cursor = conn.cursor()
 
-        cursor.execute("""
-            INSERT INTO shares (id, code, output, image_path, expires_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (image_id, code[:1000], output[:500], image_path, expires_at.isoformat()))
+#         cursor.execute("""
+#             INSERT INTO shares (id, code, output, image_path, expires_at)
+#             VALUES (?, ?, ?, ?, ?)
+#         """, (image_id, code[:1000], output[:500], image_path, expires_at.isoformat()))
 
-        conn.commit()
-        conn.close()
+#         conn.commit()
+#         conn.close()
 
-        print(f"[SHARE] Generated image: {image_filename}")
+#         print(f"[SHARE] Generated image: {image_filename}")
 
-        return jsonify({
-            "success": True,
-            "image_url": f"/share-images/{image_filename}",
-            "expires_at": expires_at.isoformat()
-        })
+#         return jsonify({
+#             "success": True,
+#             "image_url": f"/share-images/{image_filename}",
+#             "expires_at": expires_at.isoformat()
+#         })
 
-    except Exception as e:
-        print(f"[SHARE] Error generating image: {e}")
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+#     except Exception as e:
+#         print(f"[SHARE] Error generating image: {e}")
+#         return jsonify({
+#             "success": False,
+#             "error": str(e)
+#         }), 500
 
 
 @app.route("/share-images/<filename>")
