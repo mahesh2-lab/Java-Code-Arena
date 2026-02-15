@@ -1,14 +1,21 @@
 import React, { useState, useRef, useEffect } from "react";
 import html2canvas from "html2canvas";
+import { xxHash32 } from "js-xxhash";
 import { Dialog, DialogContent } from "./ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerTitle,
+  DrawerDescription,
+} from "./ui/drawer";
 import { useToast } from "../hooks/use-toast";
+import { useIsMobile } from "../hooks/use-mobile";
 import {
   Link,
   Code,
   Copy,
   Check,
   Loader2,
-  X,
   Download,
   Clock,
   Zap,
@@ -36,6 +43,20 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
   const [copied, setCopied] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+
+  // Persist share cache in localStorage
+  const getShareCache = (): { hash: string; url: string } | null => {
+    try {
+      const raw = localStorage.getItem("share_cache");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+  const setShareCache = (hash: string, url: string) => {
+    localStorage.setItem("share_cache", JSON.stringify({ hash, url }));
+  };
 
   const brandName = "JavaRena";
   const isDark = theme === "dark";
@@ -193,6 +214,19 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
     }
   }, [code, output, open]);
 
+  // xxHash32 content fingerprinting
+  const currentHash = xxHash32(code + "\n---OUTPUT---\n" + output).toString(36);
+
+  // Auto-show cached URL when dialog opens if code hasn't changed
+  useEffect(() => {
+    if (open) {
+      const cached = getShareCache();
+      if (cached && cached.hash === currentHash) {
+        setShareUrl(cached.url);
+      }
+    }
+  }, [open]);
+
   // ── Share Link ──
   const handleCreateLink = async () => {
     if (!code.trim()) {
@@ -220,10 +254,12 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       const data = await response.json();
       const url = `${window.location.origin}/s/${data.id}`;
       setShareUrl(url);
+      setShareCache(currentHash, url);
 
       toast({
         title: "Share link created! 🎉",
         description: "Your code is ready to share",
+        variant: "success",
       });
     } catch (error) {
       toast({
@@ -236,16 +272,46 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
     }
   };
 
-  const handleCopyUrl = async () => {
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    // Try modern Clipboard API first
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        // fall through to fallback
+      }
+    }
+    // Fallback: hidden textarea + execCommand
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "-9999px";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleCopyUrl = async () => {
+    const ok = await copyToClipboard(shareUrl);
+    if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       toast({
         title: "Copied! 📋",
         description: "Share link copied to clipboard",
+        variant: "success",
       });
-    } catch (error) {
+    } else {
       toast({
         title: "Failed to copy",
         description: "Please copy the link manually",
@@ -310,6 +376,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
         toast({
           title: "Downloaded! 📥",
           description: "Image saved to your device",
+          variant: "success",
         });
       }, "image/png");
     } catch (err) {
@@ -325,7 +392,11 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
   };
 
   const handleReset = () => {
-    setShareUrl("");
+    // Only clear shareUrl if code has changed since last share
+    const cached = getShareCache();
+    if (!cached || cached.hash !== currentHash) {
+      setShareUrl("");
+    }
     setImageGenerated(false);
     setCopied(false);
   };
@@ -336,254 +407,299 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
     return start + "...";
   };
 
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(open) => {
-        onOpenChange(open);
-        if (!open) {
-          setTimeout(handleReset, 200);
-        }
-      }}
-    >
-      <DialogContent
-        className="w-full max-w-[480px] p-0 overflow-hidden border-0"
-        style={{
-          background: colors.darkBg,
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.75)",
-        }}
+  const handleOpenChange = (isOpen: boolean) => {
+    onOpenChange(isOpen);
+    if (!isOpen) {
+      setTimeout(handleReset, 200);
+    }
+  };
+
+  /* ── Shared inner content (used by both Dialog and Drawer) ── */
+  const shareContent = (
+    <>
+      {/* Header */}
+      <div
+        className="px-4 sm:px-6 py-4 sm:py-6 pb-3 sm:pb-4 flex justify-between items-start"
+        style={{ borderBottom: `1px solid ${colors.borderColor}` }}
       >
-        {/* Header */}
-        <div
-          className="px-6 py-6 pb-4 flex justify-between items-start"
-          style={{ borderBottom: `1px solid ${colors.borderColor}` }}
-        >
-          <div className="flex items-center gap-3 flex-1">
-            <div
-              className="w-10 h-10 rounded-lg flex items-center justify-center"
-              style={{
-                background: `${colors.primaryGreen}15`,
-                border: `1px solid ${colors.primaryGreen}33`,
-              }}
-            >
-              <Zap className="w-5 h-5" style={{ color: colors.primaryGreen }} />
-            </div>
-            <div>
-              <h1
-                className="text-xl font-semibold tracking-tight"
-                style={{ color: colors.textPrimary }}
-              >
-                Share Your Snippet
-              </h1>
-              <p className="text-sm" style={{ color: colors.textMuted }}>
-                Generate links and export code images
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="px-6 py-6 pt-2 space-y-6 max-h-[70vh] overflow-y-auto">
-          {/* Share Link Section */}
+        <div className="flex items-center gap-2.5 sm:gap-3 flex-1">
           <div
-            className="p-5 rounded-xl border"
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shrink-0"
             style={{
-              background: colors.cardBg,
-              borderColor: `${colors.borderColor}80`,
+              background: `${colors.primaryGreen}15`,
+              border: `1px solid ${colors.primaryGreen}33`,
             }}
           >
-            <div className="flex items-center gap-2.5 mb-4">
-              <Link className="w-5 h-5" style={{ color: colors.textMuted }} />
-              <h2 className="font-medium" style={{ color: colors.textPrimary }}>
-                Share Link
-              </h2>
-            </div>
-
-            {!shareUrl ? (
-              <div className="space-y-4">
-                <p
-                  className="text-sm leading-relaxed"
-                  style={{ color: colors.textMuted }}
-                >
-                  Generate a unique shareable link. Others can view and fork
-                  your code. Link expires in 30 days.
-                </p>
-                <button
-                  onClick={handleCreateLink}
-                  disabled={loading}
-                  className="w-full py-2.5 px-4 font-bold rounded-md flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg"
-                  style={{
-                    background: loading
-                      ? `${colors.primaryGreen}B3`
-                      : colors.primaryGreen,
-                    color: colors.darkBg,
-                    boxShadow: `0 4px 6px -1px ${colors.primaryGreen}1A`,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!loading) {
-                      e.currentTarget.style.background =
-                        colors.primaryGreenHover;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!loading) {
-                      e.currentTarget.style.background = colors.primaryGreen;
-                    }
-                  }}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>GENERATING...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Link className="w-4 h-4" />
-                      <span>CREATE LINK</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4 animate-in fade-in">
-                <div
-                  className="px-4 py-3 rounded-md border flex items-center"
-                  style={{
-                    background: colors.inputBg,
-                    borderColor: colors.borderColor,
-                  }}
-                >
-                  <code
-                    className="font-mono text-sm overflow-hidden text-ellipsis whitespace-nowrap"
-                    style={{ color: `${colors.primaryGreen}E6` }}
-                  >
-                    {shareUrl}
-                  </code>
-                </div>
-
-                <div
-                  className="flex items-center gap-1.5 px-1"
-                  style={{ color: colors.textMuted }}
-                >
-                  <Clock className="w-4 h-4" />
-                  <span className="text-xs uppercase tracking-wider font-medium">
-                    Expires in 30 days
-                  </span>
-                </div>
-
-                <button
-                  onClick={handleCopyUrl}
-                  className="w-full py-2.5 px-4 font-bold rounded-md flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg"
-                  style={{
-                    background: colors.primaryGreen,
-                    color: colors.darkBg,
-                    boxShadow: `0 4px 6px -1px ${colors.primaryGreen}1A`,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = colors.primaryGreenHover;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = colors.primaryGreen;
-                  }}
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      <span>COPIED!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4" />
-                      <span>COPY LINK</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
+            <Zap
+              className="w-4 h-4 sm:w-5 sm:h-5"
+              style={{ color: colors.primaryGreen }}
+            />
           </div>
-
-          {/* Export Image Section */}
-          <div
-            className="p-5 rounded-xl border"
-            style={{
-              background: colors.cardBg,
-              borderColor: `${colors.borderColor}80`,
-            }}
-          >
-            <div className="flex items-center gap-2.5 mb-3">
-              <Code className="w-5 h-5" style={{ color: colors.textMuted }} />
-              <h2 className="font-medium" style={{ color: colors.textPrimary }}>
-                Export Image
-              </h2>
-            </div>
-
-            <div className="flex items-start gap-3 mb-5">
-              <p
-                className="text-sm leading-relaxed"
-                style={{ color: colors.textMuted }}
-              >
-                Create a high-resolution code card with professional syntax
-                highlighting. The image automatically adjusts its size to fit
-                your code and output.
-              </p>
-            </div>
-
-            <button
-              onClick={handleGenerateAndDownloadImage}
-              disabled={loading}
-              className="w-full py-2.5 px-4 bg-transparent border rounded-md flex items-center justify-center gap-2 transition-all font-medium"
-              style={{
-                borderColor: colors.borderColor,
-                color: colors.textPrimary,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
-                e.currentTarget.style.borderColor = colors.textMuted;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.borderColor = colors.borderColor;
-              }}
+          <div className="min-w-0">
+            <h1
+              className="text-base sm:text-xl font-semibold tracking-tight"
+              style={{ color: colors.textPrimary }}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>GENERATING...</span>
-                </>
-              ) : (
-                <>
-                  <Download
-                    className="w-4 h-4"
-                    style={{ color: colors.textMuted }}
-                  />
-                  <span>EXPORT IMAGE</span>
-                </>
-              )}
-            </button>
+              Share Your Snippet
+            </h1>
+            <p
+              className="text-xs sm:text-sm"
+              style={{ color: colors.textMuted }}
+            >
+              Generate links and export code images
+            </p>
           </div>
         </div>
+      </div>
 
-        {/* Footer */}
+      {/* Content */}
+      <div
+        className="px-4 sm:px-6 py-4 sm:py-6 pt-2 space-y-4 sm:space-y-6 overflow-y-auto"
+        style={{ maxHeight: isMobile ? "60vh" : "70vh" }}
+      >
+        {/* Share Link Section */}
         <div
-          className="px-6 py-4 flex justify-center items-center"
+          className="p-3.5 sm:p-5 rounded-xl border"
           style={{
-            borderTop: `1px solid ${colors.borderColor}`,
-            background: colors.inputBg,
+            background: colors.cardBg,
+            borderColor: `${colors.borderColor}80`,
           }}
         >
-          <div
-            className="flex items-center gap-1.5 text-xs font-mono tracking-widest uppercase"
-            style={{ color: colors.textMuted }}
-          >
-            JavaRena{" "}
-            <Zap
-              className="w-3.5 h-3.5"
-              style={{ color: colors.primaryGreen }}
-            />{" "}
-            Engine
+          <div className="flex items-center gap-2 sm:gap-2.5 mb-3 sm:mb-4">
+            <Link
+              className="w-4 h-4 sm:w-5 sm:h-5"
+              style={{ color: colors.textMuted }}
+            />
+            <h2
+              className="font-medium text-sm sm:text-base"
+              style={{ color: colors.textPrimary }}
+            >
+              Share Link
+            </h2>
           </div>
+
+          {!shareUrl ? (
+            <div className="space-y-3 sm:space-y-4">
+              <p
+                className="text-xs sm:text-sm leading-relaxed"
+                style={{ color: colors.textMuted }}
+              >
+                Generate a unique shareable link. Others can view and fork your
+                code. Link expires in 30 days.
+              </p>
+              <button
+                onClick={handleCreateLink}
+                disabled={loading}
+                className="w-full py-3 sm:py-2.5 px-4 font-bold text-sm rounded-md flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg"
+                style={{
+                  background: loading
+                    ? `${colors.primaryGreen}B3`
+                    : colors.primaryGreen,
+                  color: colors.darkBg,
+                  boxShadow: `0 4px 6px -1px ${colors.primaryGreen}1A`,
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading)
+                    e.currentTarget.style.background = colors.primaryGreenHover;
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading)
+                    e.currentTarget.style.background = colors.primaryGreen;
+                }}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>GENERATING...</span>
+                  </>
+                ) : (
+                  <>
+                    <Link className="w-4 h-4" />
+                    <span>CREATE LINK</span>
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3 sm:space-y-4 animate-in fade-in">
+              <div
+                className="px-3 sm:px-4 py-2.5 sm:py-3 rounded-md border flex items-center"
+                style={{
+                  background: colors.inputBg,
+                  borderColor: colors.borderColor,
+                }}
+              >
+                <code
+                  className="font-mono text-xs sm:text-sm overflow-hidden text-ellipsis whitespace-nowrap block w-full"
+                  style={{ color: `${colors.primaryGreen}E6` }}
+                >
+                  {shareUrl}
+                </code>
+              </div>
+
+              <div
+                className="flex items-center gap-1.5 px-1"
+                style={{ color: colors.textMuted }}
+              >
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="text-[10px] sm:text-xs uppercase tracking-wider font-medium">
+                  Expires in 30 days
+                </span>
+              </div>
+
+              <button
+                onClick={handleCopyUrl}
+                className="w-full py-3 sm:py-2.5 px-4 font-bold text-sm rounded-md flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg"
+                style={{
+                  background: colors.primaryGreen,
+                  color: colors.darkBg,
+                  boxShadow: `0 4px 6px -1px ${colors.primaryGreen}1A`,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = colors.primaryGreenHover;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = colors.primaryGreen;
+                }}
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>COPIED!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>COPY LINK</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
-      </DialogContent>
+
+        {/* Export Image Section */}
+        <div
+          className="p-3.5 sm:p-5 rounded-xl border"
+          style={{
+            background: colors.cardBg,
+            borderColor: `${colors.borderColor}80`,
+          }}
+        >
+          <div className="flex items-center gap-2 sm:gap-2.5 mb-2 sm:mb-3">
+            <Code
+              className="w-4 h-4 sm:w-5 sm:h-5"
+              style={{ color: colors.textMuted }}
+            />
+            <h2
+              className="font-medium text-sm sm:text-base"
+              style={{ color: colors.textPrimary }}
+            >
+              Export Image
+            </h2>
+          </div>
+
+          <div className="flex items-start gap-3 mb-3 sm:mb-5">
+            <p
+              className="text-xs sm:text-sm leading-relaxed"
+              style={{ color: colors.textMuted }}
+            >
+              Create a high-resolution code card with professional syntax
+              highlighting.
+            </p>
+          </div>
+
+          <button
+            onClick={handleGenerateAndDownloadImage}
+            disabled={loading}
+            className="w-full py-3 sm:py-2.5 px-4 bg-transparent border rounded-md flex items-center justify-center gap-2 transition-all font-medium text-sm"
+            style={{
+              borderColor: colors.borderColor,
+              color: colors.textPrimary,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = isDark
+                ? "rgba(255, 255, 255, 0.05)"
+                : "rgba(0, 0, 0, 0.03)";
+              e.currentTarget.style.borderColor = colors.textMuted;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.borderColor = colors.borderColor;
+            }}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>GENERATING...</span>
+              </>
+            ) : (
+              <>
+                <Download
+                  className="w-4 h-4"
+                  style={{ color: colors.textMuted }}
+                />
+                <span>EXPORT IMAGE</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div
+        className="px-4 sm:px-6 py-3 sm:py-4 flex justify-center items-center"
+        style={{
+          borderTop: `1px solid ${colors.borderColor}`,
+          background: colors.inputBg,
+        }}
+      >
+        <div
+          className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono tracking-widest uppercase"
+          style={{ color: colors.textMuted }}
+        >
+          JavaRena{" "}
+          <Zap
+            className="w-3 h-3 sm:w-3.5 sm:h-3.5"
+            style={{ color: colors.primaryGreen }}
+          />{" "}
+          Engine
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      {isMobile ? (
+        <Drawer open={open} onOpenChange={handleOpenChange}>
+          <DrawerContent
+            className="border-0 p-0 overflow-hidden"
+            style={{
+              background: colors.darkBg,
+              borderTop: `1px solid ${colors.borderColor}`,
+            }}
+          >
+            <DrawerTitle className="sr-only">Share Your Snippet</DrawerTitle>
+            <DrawerDescription className="sr-only">
+              Generate links and export code images
+            </DrawerDescription>
+            {shareContent}
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog open={open} onOpenChange={handleOpenChange}>
+          <DialogContent
+            className="w-full max-w-[480px] p-0 overflow-hidden border-0"
+            style={{
+              background: colors.darkBg,
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.75)",
+            }}
+          >
+            {shareContent}
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Hidden Canvas for client-side image generation */}
       <div
@@ -596,6 +712,6 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
       >
         <div ref={canvasRef}></div>
       </div>
-    </Dialog>
+    </>
   );
 };

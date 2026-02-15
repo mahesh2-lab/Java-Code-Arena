@@ -14,6 +14,13 @@ import {
 import { Theme } from "../App";
 import { ShareDialog } from "./ShareDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerTitle,
+  DrawerDescription,
+} from "./ui/drawer";
+import { useIsMobile } from "../hooks/use-mobile";
 
 interface EditorProps {
   code: string;
@@ -263,6 +270,7 @@ export const Editor: React.FC<EditorProps> = ({
   const [wordWrap, setWordWrap] = useState(true);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   // Editor settings with localStorage persistence
   const [fontSize, setFontSize] = useState<number>(
@@ -489,7 +497,129 @@ export const Editor: React.FC<EditorProps> = ({
             <Share2 className="w-3.5 h-3.5" />
           </IconBtn>
 
-          {/* Settings Popover */}
+          {/* Settings — Drawer on mobile, Popover on desktop */}
+          {isMobile ? (
+            <>
+              <button
+                onClick={() => setSettingsOpen(true)}
+                title="Editor settings"
+                className="p-1 rounded transition-all duration-150"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <Settings2 className="w-3.5 h-3.5" />
+              </button>
+              <Drawer open={settingsOpen} onOpenChange={setSettingsOpen}>
+                <DrawerContent
+                  className="border-0 p-0 overflow-hidden"
+                  style={{
+                    background: theme === "dark" ? "#1a1b26" : "#ffffff",
+                    borderTop: `1px solid ${theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"}`,
+                  }}
+                >
+                  <DrawerTitle className="sr-only">Editor Settings</DrawerTitle>
+                  <DrawerDescription className="sr-only">
+                    Adjust editor preferences
+                  </DrawerDescription>
+                  {/* Header */}
+                  <div
+                    className="px-5 py-3.5 flex items-center gap-2.5"
+                    style={{
+                      borderBottom: `1px solid ${theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)"}`,
+                    }}
+                  >
+                    <Settings2
+                      className="w-4 h-4"
+                      style={{ color: theme === "dark" ? "#10b981" : "#16a34a" }}
+                    />
+                    <span
+                      className="text-sm font-semibold"
+                      style={{ color: theme === "dark" ? "#c0caf5" : "#1e293b" }}
+                    >
+                      Editor Settings
+                    </span>
+                  </div>
+                  {/* Settings List */}
+                  <div
+                    className="py-4 px-5 space-y-5 max-h-[65vh] overflow-y-auto"
+                    style={{ scrollbarWidth: "thin" }}
+                  >
+                    <SettingRow label="Font Size" theme={theme}>
+                      <div className="flex items-center gap-2">
+                        <SettingSmallBtn onClick={() => handleFontSize(-1)} theme={theme} mobile>
+                          <Minus className="w-3.5 h-3.5" />
+                        </SettingSmallBtn>
+                        <span
+                          className="text-sm font-mono w-8 text-center tabular-nums"
+                          style={{ color: theme === "dark" ? "#c0caf5" : "#1e293b" }}
+                        >
+                          {fontSize}
+                        </span>
+                        <SettingSmallBtn onClick={() => handleFontSize(1)} theme={theme} mobile>
+                          <Plus className="w-3.5 h-3.5" />
+                        </SettingSmallBtn>
+                      </div>
+                    </SettingRow>
+
+                    <SettingRow label="Tab Size" theme={theme}>
+                      <div className="flex items-center gap-1.5">
+                        {[2, 4, 8].map((size) => {
+                          const active = tabSize === size;
+                          return (
+                            <button
+                              key={size}
+                              onClick={() => handleTabSize(size)}
+                              className="px-3.5 py-1.5 rounded-md text-xs font-mono font-medium transition-all duration-150"
+                              style={{
+                                background: active
+                                  ? theme === "dark" ? "#10b981" : "#16a34a"
+                                  : theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
+                                color: active ? "#fff" : theme === "dark" ? "#8b949e" : "#64748b",
+                              }}
+                            >
+                              {size}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </SettingRow>
+
+                    <SettingRow label="Cursor" theme={theme}>
+                      <StyledSelect value={cursorStyle} onChange={(e) => handleCursorStyle(e.target.value)} theme={theme} mobile>
+                        <option value="line">Line</option>
+                        <option value="block">Block</option>
+                        <option value="underline">Underline</option>
+                        <option value="line-thin">Thin Line</option>
+                        <option value="block-outline">Block Outline</option>
+                        <option value="underline-thin">Thin Underline</option>
+                      </StyledSelect>
+                    </SettingRow>
+
+                    <SettingRow label="Whitespace" theme={theme}>
+                      <StyledSelect value={whitespace} onChange={(e) => handleWhitespace(e.target.value)} theme={theme} mobile>
+                        <option value="none">None</option>
+                        <option value="boundary">Boundary</option>
+                        <option value="selection">Selection</option>
+                        <option value="trailing">Trailing</option>
+                        <option value="all">All</option>
+                      </StyledSelect>
+                    </SettingRow>
+
+                    <div
+                      style={{
+                        height: 1,
+                        background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)",
+                      }}
+                    />
+
+                    <SettingsToggle label="Minimap" checked={minimap} onChange={handleMinimap} theme={theme} mobile />
+                    <SettingsToggle label="Line Numbers" checked={lineNumbers} onChange={handleLineNumbers} theme={theme} mobile />
+                    <SettingsToggle label="Font Ligatures" checked={ligatures} onChange={handleLigatures} theme={theme} mobile />
+                    <SettingsToggle label="Bracket Colors" checked={bracketColors} onChange={handleBracketColors} theme={theme} mobile />
+                  </div>
+                </DrawerContent>
+              </Drawer>
+            </>
+          ) : (
           <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
             <PopoverTrigger asChild>
               <button
@@ -674,6 +804,7 @@ export const Editor: React.FC<EditorProps> = ({
               </div>
             </PopoverContent>
           </Popover>
+          )}
         </div>
 
         {/* Language badge */}
@@ -876,10 +1007,11 @@ const SettingSmallBtn: React.FC<{
   onClick: () => void;
   theme: Theme;
   children: React.ReactNode;
-}> = ({ onClick, theme, children }) => (
+  mobile?: boolean;
+}> = ({ onClick, theme, children, mobile }) => (
   <button
     onClick={onClick}
-    className="w-7 h-7 rounded-md flex items-center justify-center transition-all duration-150 active:scale-95"
+    className={`${mobile ? "w-9 h-9" : "w-7 h-7"} rounded-md flex items-center justify-center transition-all duration-150 active:scale-95`}
     style={{
       background:
         theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
@@ -896,7 +1028,8 @@ const StyledSelect: React.FC<{
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   theme: Theme;
   children: React.ReactNode;
-}> = ({ value, onChange, theme, children }) => {
+  mobile?: boolean;
+}> = ({ value, onChange, theme, children, mobile }) => {
   const isDark = theme === "dark";
   const optionBg = isDark ? "#1a1b26" : "#ffffff";
   const optionColor = isDark ? "#c0caf5" : "#1e293b";
@@ -925,7 +1058,7 @@ const StyledSelect: React.FC<{
     <select
       value={value}
       onChange={onChange}
-      className="text-[11px] font-mono rounded-md px-2.5 py-1.5 outline-none cursor-pointer transition-colors duration-150 appearance-none"
+      className={`${mobile ? "text-sm py-2 px-3" : "text-[11px] py-1.5 px-2.5"} font-mono rounded-md outline-none cursor-pointer transition-colors duration-150 appearance-none`}
       style={{
         background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
         color: isDark ? "#c0caf5" : "#1e293b",
@@ -947,39 +1080,75 @@ const SettingsToggle: React.FC<{
   checked: boolean;
   onChange: () => void;
   theme: Theme;
-}> = ({ label, checked, onChange, theme }) => (
-  <div className="flex items-center justify-between">
-    <span
-      className="text-xs font-medium"
-      style={{ color: theme === "dark" ? "#8b949e" : "#64748b" }}
-    >
-      {label}
-    </span>
-    <button
-      onClick={onChange}
-      className="relative w-9 h-5 rounded-full transition-colors duration-200"
-      style={{
-        background: checked
-          ? theme === "dark"
-            ? "#10b981"
-            : "#16a34a"
-          : theme === "dark"
-            ? "rgba(255,255,255,0.1)"
-            : "rgba(0,0,0,0.12)",
-      }}
+  mobile?: boolean;
+}> = ({ label, checked, onChange, theme, mobile }) => {
+  const trackW = mobile ? 46 : 38;
+  const trackH = mobile ? 26 : 22;
+  const knobSize = mobile ? 18 : 14;
+  const gap = (trackH - knobSize) / 2;
+
+  return (
+    <div
+      className="flex items-center justify-between"
+      style={{ minHeight: mobile ? 40 : 28 }}
     >
       <span
-        className="absolute top-[3px] w-[14px] h-[14px] rounded-full transition-all duration-200 shadow-sm"
-        style={{
-          background: checked
-            ? "#fff"
-            : theme === "dark"
-              ? "#6b7280"
-              : "#9ca3af",
-          left: 3,
-          transform: checked ? "translateX(16px)" : "translateX(0)",
+        className={`${mobile ? "text-sm" : "text-xs"} font-medium select-none`}
+        style={{ color: theme === "dark" ? "#8b949e" : "#64748b" }}
+      >
+        {label}
+      </span>
+      <div
+        onClick={onChange}
+        role="switch"
+        aria-checked={checked}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onChange();
+          }
         }}
-      />
-    </button>
-  </div>
-);
+        style={{
+          position: "relative",
+          width: trackW,
+          height: trackH,
+          flexShrink: 0,
+          borderRadius: trackH,
+          cursor: "pointer",
+          backgroundColor: checked
+            ? theme === "dark"
+              ? "#10b981"
+              : "#16a34a"
+            : theme === "dark"
+              ? "rgba(255,255,255,0.12)"
+              : "rgba(0,0,0,0.15)",
+          transition: "background-color 0.2s ease",
+          boxSizing: "border-box",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: gap,
+            left: gap,
+            width: knobSize,
+            height: knobSize,
+            borderRadius: knobSize,
+            backgroundColor: checked
+              ? "#fff"
+              : theme === "dark"
+                ? "#6b7280"
+                : "#9ca3af",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+            transform: checked
+              ? `translateX(${trackW - knobSize - gap * 2}px)`
+              : "translateX(0)",
+            transition: "transform 0.2s ease, background-color 0.2s ease",
+          }}
+        />
+      </div>
+    </div>
+  );
+};

@@ -331,9 +331,13 @@ body {
     padding-right: 0.75rem !important;
   }
 
-  /* Better touch targets on mobile */
-  button {
+  /* Better touch targets on mobile (exclude toast close) */
+  button:not(.toast-close-btn) {
     min-height: 44px !important;
+  }
+
+  .toast-close-btn {
+    min-height: unset !important;
   }
 
   /* Mobile-specific Monaco editor adjustments */
