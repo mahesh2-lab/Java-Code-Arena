@@ -20,7 +20,7 @@ export function SEOHead({
   title = "JavaRena — Online Java Compiler & Code Playground",
   description = "Write, compile, and run Java code instantly in your browser. Free online Java playground with Monaco Editor and real-time output.",
   canonicalUrl,
-  ogImage = "https://javarena.dev/og-image.png",
+  ogImage = "https://javarena.hostmyidea.me/og-image.png",
   ogType = "website",
   noIndex = false,
 }: SEOProps) {

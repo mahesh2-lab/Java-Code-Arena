@@ -294,7 +294,7 @@ export default function App() {
             ? "View and run this shared Java code snippet on JavaRena. Free online Java compiler with Monaco Editor."
             : "Write, compile, and run Java code instantly in your browser. Free online Java playground with Monaco Editor and real-time output."
         }
-        canonicalUrl="https://javarena.dev/"
+        canonicalUrl="https://javarena.hostmyidea.me/"
       />
 
       {/* Top Navigation Bar */}
