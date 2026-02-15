@@ -458,7 +458,7 @@ export const ShareDialog: React.FC<ShareDialogProps> = ({
                     className="font-mono text-sm overflow-hidden text-ellipsis whitespace-nowrap"
                     style={{ color: `${colors.primaryGreen}E6` }}
                   >
-                    {truncateUrl(shareUrl, 35)}
+                    {shareUrl}
                   </code>
                 </div>
 
