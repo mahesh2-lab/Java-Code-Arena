@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { Navbar } from "./components/NavBar";
 import { Editor } from "./components/Editor";
-import { Console, LogEntry } from "./components/Console";
+import { Console, LogEntry, ErrorReview } from "./components/Console";
 import { useCheerpJ } from "./hooks/useCheerpJ";
 import { useIsMobile } from "./hooks/use-mobile";
 import { Toaster } from "./components/ui/toaster";
@@ -60,6 +60,8 @@ export default function App() {
   );
   const [stdinInput, setStdinInput] = useState<string>("");
   const [isForkedSession, setIsForkedSession] = useState<boolean>(false);
+  const [errorReview, setErrorReview] = useState<ErrorReview | null>(null);
+  const [aiReview, setAiReview] = useState<string | null>(null);
 
   const isMobile = useIsMobile();
   const { isReady } = useCheerpJ();
@@ -190,6 +192,8 @@ export default function App() {
     setIsRunning(true);
     setExecTime(null);
     setOutput([]);
+    setErrorReview(null);
+    setAiReview(null);
     const start = performance.now();
 
     const originalLog = console.log;
@@ -223,6 +227,13 @@ export default function App() {
       if (!result.success) {
         log(`Error: ${result.error}`, "error");
       } else {
+        // Capture runtime stderr review even on success
+        if (result.error && result.error.trim() && result.error_review) {
+          setErrorReview(result.error_review);
+        }
+        if (result.error && result.error.trim() && result.ai_review) {
+          setAiReview(result.ai_review);
+        }
         if (result.output) {
           const lines = result.output.trim().split("\n");
           lines.forEach((line: string) => {
@@ -233,6 +244,14 @@ export default function App() {
         if (result.error && result.error.trim()) {
           log(result.error, "error");
         }
+      }
+
+      // Capture error reviews (compilation failures)
+      if (result.error_review) {
+        setErrorReview(result.error_review);
+      }
+      if (result.ai_review) {
+        setAiReview(result.ai_review);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -401,10 +420,16 @@ export default function App() {
                   <Console
                     output={output}
                     executionTime={execTime}
-                    onClear={() => setOutput([])}
+                    onClear={() => {
+                      setOutput([]);
+                      setErrorReview(null);
+                      setAiReview(null);
+                    }}
                     theme={theme}
                     stdinInput={stdinInput}
                     onStdinChange={setStdinInput}
+                    errorReview={errorReview}
+                    aiReview={aiReview}
                   />
                 </section>
               )}
@@ -478,10 +503,16 @@ export default function App() {
                   <Console
                     output={output}
                     executionTime={execTime}
-                    onClear={() => setOutput([])}
+                    onClear={() => {
+                      setOutput([]);
+                      setErrorReview(null);
+                      setAiReview(null);
+                    }}
                     theme={theme}
                     stdinInput={stdinInput}
                     onStdinChange={setStdinInput}
+                    errorReview={errorReview}
+                    aiReview={aiReview}
                   />
                 </section>
               </>

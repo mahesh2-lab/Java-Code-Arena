@@ -1,3 +1,8 @@
+from codeReview import explain_error, ai_review_error
+from nanoid import generate
+import re
+from flask_cors import CORS
+from flask import Flask, request, jsonify, send_from_directory, send_file
 import os
 import sys
 import platform
@@ -12,6 +17,9 @@ import html
 import threading
 from pathlib import Path
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
 
 # ── Dependency check ──
 REQUIRED_PACKAGES = {
@@ -41,10 +49,6 @@ if _missing:
     print(f"    {BOLD}pip install -r requirements.txt{RESET}\n")
     sys.exit(1)
 
-from flask import Flask, request, jsonify, send_from_directory, send_file
-from flask_cors import CORS
-import re
-from nanoid import generate
 
 # Create Flask app with proper static folder configuration
 app = Flask(__name__, static_folder='dist', static_url_path='')
@@ -68,16 +72,17 @@ def add_security_headers(response):
 
     # Performance: cache static assets aggressively
     if response.content_type and ('javascript' in response.content_type or
-        'css' in response.content_type or
-        'image' in response.content_type or
-        'font' in response.content_type or
-        'svg' in response.content_type):
+                                  'css' in response.content_type or
+                                  'image' in response.content_type or
+                                  'font' in response.content_type or
+                                  'svg' in response.content_type):
         response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
     elif response.content_type and 'text/html' in response.content_type:
         # HTML should be revalidated (for SPA updates)
         response.headers['Cache-Control'] = 'public, max-age=0, must-revalidate'
 
     return response
+
 
 # Detect OS
 SYSTEM = platform.system()
@@ -622,6 +627,34 @@ def compile_endpoint():
             print(f"[API] Error: {repr(result['error'][:200])}")
         print(f"{'='*50}\n")
 
+        # If there's an error, attach a detailed explanation
+        error_text = result.get('error', '')
+        if error_text and error_text.strip():
+            is_compilation = not result.get('success') and (
+                'Compilation failed' in error_text or 'error:' in error_text
+            )
+
+            # Try AI review first (richer, needs API key)
+            ai_explanation = ai_review_error(
+                error_text=error_text,
+                source_code=source_code,
+                is_compilation_error=is_compilation,
+            )
+            if ai_explanation:
+                result['ai_review'] = ai_explanation
+                print(f"[REVIEW] AI review attached")
+            else:
+                # Fallback to pattern-matching review when AI is unavailable
+                review = explain_error(
+                    error_text=error_text,
+                    source_code=source_code,
+                    is_compilation_error=is_compilation,
+                )
+                if review:
+                    result['error_review'] = review
+                    print(
+                        f"[REVIEW] Pattern-match fallback: {review['title']}")
+
         return jsonify(result)
 
     except Exception as e:
@@ -672,7 +705,8 @@ def serve_shared(share_id):
             return serve("")
 
         # Get first 150 chars of code for description (SEO optimized length)
-        code_preview = code[:150].replace('\n', ' ').replace('"', '&quot;').replace('<', '&lt;').replace('>', '&gt;')
+        code_preview = code[:150].replace('\n', ' ').replace(
+            '"', '&quot;').replace('<', '&lt;').replace('>', '&gt;')
 
         # Generate OG image URL
         og_image = f"{request.host_url}share-images/{os.path.basename(image_path)}" if image_path else f"{request.host_url}og-image.png"

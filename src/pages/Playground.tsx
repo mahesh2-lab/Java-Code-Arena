@@ -31,6 +31,8 @@ export default function Playground() {
   const [executionTime, setExecutionTime] = useState<number | null>(null);
   const [theme] = useState<Theme>("dark");
   const [stdinInput, setStdinInput] = useState<string>("");
+  const [errorReview, setErrorReview] = useState<any>(null);
+  const [aiReview, setAiReview] = useState<string | null>(null);
 
   const { toast } = useToast();
   const createSnippet = useCreateSnippet();
@@ -54,6 +56,8 @@ export default function Playground() {
     setOutput([]);
     setIsError(false);
     setExecutionTime(null);
+    setErrorReview(null);
+    setAiReview(null);
     const startTime = performance.now();
 
     try {
@@ -97,6 +101,14 @@ export default function Playground() {
             }),
           );
         setOutput(errorLines);
+
+        // Capture error reviews if present
+        if (result.error_review) {
+          setErrorReview(result.error_review);
+        }
+        if (result.ai_review) {
+          setAiReview(result.ai_review);
+        }
       }
     } catch (err: any) {
       setIsError(true);
@@ -219,10 +231,16 @@ export default function Playground() {
             <Console
               output={output}
               executionTime={executionTime}
-              onClear={() => setOutput([])}
+              onClear={() => {
+                setOutput([]);
+                setErrorReview(null);
+                setAiReview(null);
+              }}
               theme={theme}
               stdinInput={stdinInput}
               onStdinChange={setStdinInput}
+              errorReview={errorReview}
+              aiReview={aiReview}
             />
           </ResizablePanel>
         </ResizablePanelGroup>

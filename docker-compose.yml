@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
     environment:
       - FLASK_ENV=production
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 30s

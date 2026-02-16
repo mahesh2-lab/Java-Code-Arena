@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-  xmlns:xhtml="http://www.w3.org/1999/xhtml"
   xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 
   <!-- Homepage / Java Playground -->
@@ -16,17 +15,6 @@
     </image:image>
   </url>
 
-  
-    <!-- Shared code snippets are dynamically generated.
-    For a production deployment, consider generating sitemap entries
-    for popular/public shared snippets via the /api/share endpoint.
-    Example: -->
-    <url>
-      <loc>https://javarena.hostmyidea.me/s/{share_id}</loc>
-      <lastmod>{created_at}</lastmod>
-      <changefreq>never</changefreq>
-      <priority>0.4</priority>
-    </url>
  
 
 </urlset>

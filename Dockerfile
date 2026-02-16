@@ -79,10 +79,14 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # ── Copy the Python server ──────────────────────────────
-COPY server.py ./
+COPY server.py codeReview.py ./
 
 # ── Copy the built frontend from Stage 1 ────────────────
 COPY --from=frontend-builder /app/dist ./dist
+
+# ── Environment variables ───────────────────────────────
+# OPENROUTER_API_KEY should be passed at runtime via docker-compose or docker run -e
+ENV OPENROUTER_API_KEY=""
 
 # ── Expose the server port ──────────────────────────────
 EXPOSE 5000
