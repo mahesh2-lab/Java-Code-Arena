@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import MonacoEditor, { OnMount, BeforeMount } from "@monaco-editor/react";
+import * as monaco from "monaco-editor";
 import {
   FileCode2,
   Copy,
@@ -304,10 +305,288 @@ export const Editor: React.FC<EditorProps> = ({
   const customThemeName =
     theme === "light" ? "aurora-light-studio" : "eclipse-emerald-pro";
 
-  // Register both custom themes before Monaco mounts
-  const handleBeforeMount: BeforeMount = (monaco) => {
-    monaco.editor.defineTheme("eclipse-emerald-pro", eclipseEmeraldPro);
-    monaco.editor.defineTheme("aurora-light-studio", auroraLightStudio);
+  // Register both custom themes and Java language before Monaco mounts
+  const handleBeforeMount: BeforeMount = (monacoInstance) => {
+    monacoInstance.editor.defineTheme("eclipse-emerald-pro", eclipseEmeraldPro);
+    monacoInstance.editor.defineTheme("aurora-light-studio", auroraLightStudio);
+
+    // Register Java language
+    monacoInstance.languages.register({ id: "java" });
+
+    // Java keywords, classes, methods
+    const JAVA_KEYWORDS = [
+      "abstract",
+      "assert",
+      "boolean",
+      "break",
+      "byte",
+      "case",
+      "catch",
+      "char",
+      "class",
+      "const",
+      "continue",
+      "default",
+      "do",
+      "double",
+      "else",
+      "enum",
+      "extends",
+      "final",
+      "finally",
+      "float",
+      "for",
+      "goto",
+      "if",
+      "implements",
+      "import",
+      "instanceof",
+      "int",
+      "interface",
+      "long",
+      "native",
+      "new",
+      "package",
+      "private",
+      "protected",
+      "public",
+      "return",
+      "short",
+      "static",
+      "strictfp",
+      "super",
+      "switch",
+      "synchronized",
+      "this",
+      "throw",
+      "throws",
+      "transient",
+      "try",
+      "void",
+      "volatile",
+      "while",
+    ];
+    const JAVA_CLASSES = [
+      "String",
+      "System",
+      "Math",
+      "Integer",
+      "Double",
+      "Boolean",
+      "Character",
+      "ArrayList",
+      "LinkedList",
+      "HashMap",
+      "HashSet",
+      "Scanner",
+      "Thread",
+      "Runnable",
+      "Exception",
+      "IOException",
+    ];
+    const STRING_METHODS = [
+      "length()",
+      "substring()",
+      "charAt()",
+      "toUpperCase()",
+      "toLowerCase()",
+      "equals()",
+      "contains()",
+      "replace()",
+    ];
+    const MATH_METHODS = [
+      "abs()",
+      "max()",
+      "min()",
+      "sqrt()",
+      "pow()",
+      "random()",
+      "round()",
+    ];
+
+    // Extract user symbols
+    function extractUserSymbols(code: string): {
+      classes: string[];
+      methods: string[];
+      variables: { [key: string]: string };
+    } {
+      const classes: string[] = [];
+      const methods: string[] = [];
+      const variables: { [key: string]: string } = {};
+      let match: RegExpExecArray | null;
+      const classRegex = /class\s+([A-Za-z_][A-Za-z0-9_]*)/g;
+      while ((match = classRegex.exec(code)) !== null) {
+        classes.push(match[1]);
+      }
+      const methodRegex =
+        /(public|private|protected)?\s*(static)?\s*\w+\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g;
+      while ((match = methodRegex.exec(code)) !== null) {
+        methods.push(match[3]);
+      }
+      const varRegex =
+        /\b(int|double|String|boolean|char|float|long)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g;
+      while ((match = varRegex.exec(code)) !== null) {
+        variables[match[2]] = match[1];
+      }
+      return { classes, methods, variables };
+    }
+
+    // Register completion provider
+    monacoInstance.languages.registerCompletionItemProvider("java", {
+      triggerCharacters: [".", ...JAVA_KEYWORDS],
+      provideCompletionItems: function (
+        model: monaco.editor.ITextModel,
+        position: monaco.Position,
+      ): monaco.languages.ProviderResult<monaco.languages.CompletionList> {
+        const code = model.getValue();
+        const { classes, methods, variables } = extractUserSymbols(code);
+        const word = model.getWordUntilPosition(position);
+        const range: monaco.IRange = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn,
+        };
+        const suggestions: monaco.languages.CompletionItem[] = [];
+        const textUntilPosition = model.getValueInRange({
+          startLineNumber: 1,
+          startColumn: 1,
+          endLineNumber: position.lineNumber,
+          endColumn: position.column,
+        });
+        // Dot-based smart suggest
+        const dotMatch = textUntilPosition.match(/([a-zA-Z_][a-zA-Z0-9_]*)\.$/);
+        if (dotMatch) {
+          const objectName = dotMatch[1];
+          const type = variables[objectName as keyof typeof variables];
+          if (type === "String") {
+            STRING_METHODS.forEach((method) => {
+              suggestions.push({
+                label: method,
+                kind: monacoInstance.languages.CompletionItemKind.Method,
+                insertText: method,
+                range,
+              });
+            });
+          }
+          if (objectName === "Math") {
+            MATH_METHODS.forEach((method) => {
+              suggestions.push({
+                label: method,
+                kind: monacoInstance.languages.CompletionItemKind.Method,
+                insertText: method,
+                range,
+              });
+            });
+          }
+          return { suggestions };
+        }
+        // Keywords
+        JAVA_KEYWORDS.forEach((keyword) => {
+          suggestions.push({
+            label: keyword,
+            kind: monacoInstance.languages.CompletionItemKind.Keyword,
+            insertText: keyword,
+            range,
+          });
+        });
+        // Static classes
+        JAVA_CLASSES.forEach((cls) => {
+          suggestions.push({
+            label: cls,
+            kind: monacoInstance.languages.CompletionItemKind.Class,
+            insertText: cls,
+            range,
+          });
+        });
+        // User classes
+        classes.forEach((cls) => {
+          suggestions.push({
+            label: cls,
+            kind: monacoInstance.languages.CompletionItemKind.Class,
+            insertText: cls,
+            range,
+          });
+        });
+        // User methods
+        methods.forEach((method) => {
+          suggestions.push({
+            label: method + "()",
+            kind: monacoInstance.languages.CompletionItemKind.Method,
+            insertText: method + "()",
+            range,
+          });
+        });
+        // User variables
+        Object.keys(variables).forEach((variable) => {
+          suggestions.push({
+            label: variable,
+            kind: monacoInstance.languages.CompletionItemKind.Variable,
+            insertText: variable,
+            range,
+          });
+        });
+        // Snippets
+        suggestions.push({
+          label: "main",
+          kind: monacoInstance.languages.CompletionItemKind.Snippet,
+          insertText: [
+            "public static void main(String[] args) {",
+            "\t$0",
+            "}",
+          ].join("\n"),
+          insertTextRules:
+            monacoInstance.languages.CompletionItemInsertTextRule
+              .InsertAsSnippet,
+          range,
+        });
+        suggestions.push({
+          label: "sout",
+          kind: monacoInstance.languages.CompletionItemKind.Snippet,
+          insertText: "System.out.println($1);",
+          insertTextRules:
+            monacoInstance.languages.CompletionItemInsertTextRule
+              .InsertAsSnippet,
+          range,
+        });
+        suggestions.push({
+          label: "fori",
+          kind: monacoInstance.languages.CompletionItemKind.Snippet,
+          insertText: ["for (int i = 0; i < ${1:n}; i++) {", "\t$0", "}"].join(
+            "\n",
+          ),
+          insertTextRules:
+            monacoInstance.languages.CompletionItemInsertTextRule
+              .InsertAsSnippet,
+          range,
+        });
+        suggestions.push({
+          label: "if",
+          kind: monacoInstance.languages.CompletionItemKind.Snippet,
+          insertText: ["if (${1:condition}) {", "\t$0", "}"].join("\n"),
+          insertTextRules:
+            monacoInstance.languages.CompletionItemInsertTextRule
+              .InsertAsSnippet,
+          range,
+        });
+        suggestions.push({
+          label: "trycatch",
+          kind: monacoInstance.languages.CompletionItemKind.Snippet,
+          insertText: [
+            "try {",
+            "\t$0",
+            "} catch (${1:Exception} e) {",
+            "\te.printStackTrace();",
+            "}",
+          ].join("\n"),
+          insertTextRules:
+            monacoInstance.languages.CompletionItemInsertTextRule
+              .InsertAsSnippet,
+          range,
+        });
+        return { suggestions };
+      },
+    });
   };
 
   const handleEditorMount: OnMount = (editor) => {
@@ -529,11 +808,15 @@ export const Editor: React.FC<EditorProps> = ({
                   >
                     <Settings2
                       className="w-4 h-4"
-                      style={{ color: theme === "dark" ? "#10b981" : "#16a34a" }}
+                      style={{
+                        color: theme === "dark" ? "#10b981" : "#16a34a",
+                      }}
                     />
                     <span
                       className="text-sm font-semibold"
-                      style={{ color: theme === "dark" ? "#c0caf5" : "#1e293b" }}
+                      style={{
+                        color: theme === "dark" ? "#c0caf5" : "#1e293b",
+                      }}
                     >
                       Editor Settings
                     </span>
@@ -545,16 +828,26 @@ export const Editor: React.FC<EditorProps> = ({
                   >
                     <SettingRow label="Font Size" theme={theme}>
                       <div className="flex items-center gap-2">
-                        <SettingSmallBtn onClick={() => handleFontSize(-1)} theme={theme} mobile>
+                        <SettingSmallBtn
+                          onClick={() => handleFontSize(-1)}
+                          theme={theme}
+                          mobile
+                        >
                           <Minus className="w-3.5 h-3.5" />
                         </SettingSmallBtn>
                         <span
                           className="text-sm font-mono w-8 text-center tabular-nums"
-                          style={{ color: theme === "dark" ? "#c0caf5" : "#1e293b" }}
+                          style={{
+                            color: theme === "dark" ? "#c0caf5" : "#1e293b",
+                          }}
                         >
                           {fontSize}
                         </span>
-                        <SettingSmallBtn onClick={() => handleFontSize(1)} theme={theme} mobile>
+                        <SettingSmallBtn
+                          onClick={() => handleFontSize(1)}
+                          theme={theme}
+                          mobile
+                        >
                           <Plus className="w-3.5 h-3.5" />
                         </SettingSmallBtn>
                       </div>
@@ -571,9 +864,17 @@ export const Editor: React.FC<EditorProps> = ({
                               className="px-3.5 py-1.5 rounded-md text-xs font-mono font-medium transition-all duration-150"
                               style={{
                                 background: active
-                                  ? theme === "dark" ? "#10b981" : "#16a34a"
-                                  : theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-                                color: active ? "#fff" : theme === "dark" ? "#8b949e" : "#64748b",
+                                  ? theme === "dark"
+                                    ? "#10b981"
+                                    : "#16a34a"
+                                  : theme === "dark"
+                                    ? "rgba(255,255,255,0.06)"
+                                    : "rgba(0,0,0,0.05)",
+                                color: active
+                                  ? "#fff"
+                                  : theme === "dark"
+                                    ? "#8b949e"
+                                    : "#64748b",
                               }}
                             >
                               {size}
@@ -584,7 +885,12 @@ export const Editor: React.FC<EditorProps> = ({
                     </SettingRow>
 
                     <SettingRow label="Cursor" theme={theme}>
-                      <StyledSelect value={cursorStyle} onChange={(e) => handleCursorStyle(e.target.value)} theme={theme} mobile>
+                      <StyledSelect
+                        value={cursorStyle}
+                        onChange={(e) => handleCursorStyle(e.target.value)}
+                        theme={theme}
+                        mobile
+                      >
                         <option value="line">Line</option>
                         <option value="block">Block</option>
                         <option value="underline">Underline</option>
@@ -595,7 +901,12 @@ export const Editor: React.FC<EditorProps> = ({
                     </SettingRow>
 
                     <SettingRow label="Whitespace" theme={theme}>
-                      <StyledSelect value={whitespace} onChange={(e) => handleWhitespace(e.target.value)} theme={theme} mobile>
+                      <StyledSelect
+                        value={whitespace}
+                        onChange={(e) => handleWhitespace(e.target.value)}
+                        theme={theme}
+                        mobile
+                      >
                         <option value="none">None</option>
                         <option value="boundary">Boundary</option>
                         <option value="selection">Selection</option>
@@ -607,203 +918,231 @@ export const Editor: React.FC<EditorProps> = ({
                     <div
                       style={{
                         height: 1,
-                        background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)",
+                        background:
+                          theme === "dark"
+                            ? "rgba(255,255,255,0.06)"
+                            : "rgba(0,0,0,0.07)",
                       }}
                     />
 
-                    <SettingsToggle label="Minimap" checked={minimap} onChange={handleMinimap} theme={theme} mobile />
-                    <SettingsToggle label="Line Numbers" checked={lineNumbers} onChange={handleLineNumbers} theme={theme} mobile />
-                    <SettingsToggle label="Font Ligatures" checked={ligatures} onChange={handleLigatures} theme={theme} mobile />
-                    <SettingsToggle label="Bracket Colors" checked={bracketColors} onChange={handleBracketColors} theme={theme} mobile />
+                    <SettingsToggle
+                      label="Minimap"
+                      checked={minimap}
+                      onChange={handleMinimap}
+                      theme={theme}
+                      mobile
+                    />
+                    <SettingsToggle
+                      label="Line Numbers"
+                      checked={lineNumbers}
+                      onChange={handleLineNumbers}
+                      theme={theme}
+                      mobile
+                    />
+                    <SettingsToggle
+                      label="Font Ligatures"
+                      checked={ligatures}
+                      onChange={handleLigatures}
+                      theme={theme}
+                      mobile
+                    />
+                    <SettingsToggle
+                      label="Bracket Colors"
+                      checked={bracketColors}
+                      onChange={handleBracketColors}
+                      theme={theme}
+                      mobile
+                    />
                   </div>
                 </DrawerContent>
               </Drawer>
             </>
           ) : (
-          <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
-            <PopoverTrigger asChild>
-              <button
-                title="Editor settings"
-                className="p-1 rounded transition-all duration-150"
-                style={{ color: "var(--text-muted)" }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-surface-hover)";
-                  e.currentTarget.style.color = "var(--text-secondary)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "var(--text-muted)";
-                }}
-              >
-                <Settings2 className="w-3.5 h-3.5" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              sideOffset={8}
-              className="w-[280px] p-0 border-0"
-              style={{
-                background: theme === "dark" ? "#1a1b26" : "#ffffff",
-                border: `1px solid ${theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"}`,
-                borderRadius: 12,
-                boxShadow:
-                  theme === "dark"
-                    ? "0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)"
-                    : "0 20px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)",
-              }}
-            >
-              {/* Header */}
-              <div
-                className="px-4 py-3 flex items-center gap-2.5"
-                style={{
-                  borderBottom: `1px solid ${theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)"}`,
-                }}
-              >
-                <Settings2
-                  className="w-4 h-4"
-                  style={{ color: theme === "dark" ? "#10b981" : "#16a34a" }}
-                />
-                <span
-                  className="text-sm font-semibold"
-                  style={{ color: theme === "dark" ? "#c0caf5" : "#1e293b" }}
-                >
-                  Editor Settings
-                </span>
-              </div>
-
-              {/* Settings List */}
-              <div
-                className="py-3 px-4 space-y-4 max-h-[360px] overflow-y-auto"
-                style={{ scrollbarWidth: "thin" }}
-              >
-                {/* Font Size */}
-                <SettingRow label="Font Size" theme={theme}>
-                  <div className="flex items-center gap-1.5">
-                    <SettingSmallBtn
-                      onClick={() => handleFontSize(-1)}
-                      theme={theme}
-                    >
-                      <Minus className="w-3 h-3" />
-                    </SettingSmallBtn>
-                    <span
-                      className="text-xs font-mono w-7 text-center tabular-nums"
-                      style={{
-                        color: theme === "dark" ? "#c0caf5" : "#1e293b",
-                      }}
-                    >
-                      {fontSize}
-                    </span>
-                    <SettingSmallBtn
-                      onClick={() => handleFontSize(1)}
-                      theme={theme}
-                    >
-                      <Plus className="w-3 h-3" />
-                    </SettingSmallBtn>
-                  </div>
-                </SettingRow>
-
-                {/* Tab Size */}
-                <SettingRow label="Tab Size" theme={theme}>
-                  <div className="flex items-center gap-1">
-                    {[2, 4, 8].map((size) => {
-                      const active = tabSize === size;
-                      return (
-                        <button
-                          key={size}
-                          onClick={() => handleTabSize(size)}
-                          className="px-2.5 py-1 rounded-md text-[11px] font-mono font-medium transition-all duration-150"
-                          style={{
-                            background: active
-                              ? theme === "dark"
-                                ? "#10b981"
-                                : "#16a34a"
-                              : theme === "dark"
-                                ? "rgba(255,255,255,0.06)"
-                                : "rgba(0,0,0,0.05)",
-                            color: active
-                              ? "#fff"
-                              : theme === "dark"
-                                ? "#8b949e"
-                                : "#64748b",
-                          }}
-                        >
-                          {size}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </SettingRow>
-
-                {/* Cursor Style */}
-                <SettingRow label="Cursor" theme={theme}>
-                  <StyledSelect
-                    value={cursorStyle}
-                    onChange={(e) => handleCursorStyle(e.target.value)}
-                    theme={theme}
-                  >
-                    <option value="line">Line</option>
-                    <option value="block">Block</option>
-                    <option value="underline">Underline</option>
-                    <option value="line-thin">Thin Line</option>
-                    <option value="block-outline">Block Outline</option>
-                    <option value="underline-thin">Thin Underline</option>
-                  </StyledSelect>
-                </SettingRow>
-
-                {/* Whitespace */}
-                <SettingRow label="Whitespace" theme={theme}>
-                  <StyledSelect
-                    value={whitespace}
-                    onChange={(e) => handleWhitespace(e.target.value)}
-                    theme={theme}
-                  >
-                    <option value="none">None</option>
-                    <option value="boundary">Boundary</option>
-                    <option value="selection">Selection</option>
-                    <option value="trailing">Trailing</option>
-                    <option value="all">All</option>
-                  </StyledSelect>
-                </SettingRow>
-
-                {/* Divider */}
-                <div
-                  style={{
-                    height: 1,
-                    background:
-                      theme === "dark"
-                        ? "rgba(255,255,255,0.06)"
-                        : "rgba(0,0,0,0.07)",
+            <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  title="Editor settings"
+                  className="p-1 rounded transition-all duration-150"
+                  style={{ color: "var(--text-muted)" }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background =
+                      "var(--bg-surface-hover)";
+                    e.currentTarget.style.color = "var(--text-secondary)";
                   }}
-                />
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = "var(--text-muted)";
+                  }}
+                >
+                  <Settings2 className="w-3.5 h-3.5" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                sideOffset={8}
+                className="w-[280px] p-0 border-0"
+                style={{
+                  background: theme === "dark" ? "#1a1b26" : "#ffffff",
+                  border: `1px solid ${theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.1)"}`,
+                  borderRadius: 12,
+                  boxShadow:
+                    theme === "dark"
+                      ? "0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)"
+                      : "0 20px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)",
+                }}
+              >
+                {/* Header */}
+                <div
+                  className="px-4 py-3 flex items-center gap-2.5"
+                  style={{
+                    borderBottom: `1px solid ${theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)"}`,
+                  }}
+                >
+                  <Settings2
+                    className="w-4 h-4"
+                    style={{ color: theme === "dark" ? "#10b981" : "#16a34a" }}
+                  />
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: theme === "dark" ? "#c0caf5" : "#1e293b" }}
+                  >
+                    Editor Settings
+                  </span>
+                </div>
 
-                {/* Toggles */}
-                <SettingsToggle
-                  label="Minimap"
-                  checked={minimap}
-                  onChange={handleMinimap}
-                  theme={theme}
-                />
-                <SettingsToggle
-                  label="Line Numbers"
-                  checked={lineNumbers}
-                  onChange={handleLineNumbers}
-                  theme={theme}
-                />
-                <SettingsToggle
-                  label="Font Ligatures"
-                  checked={ligatures}
-                  onChange={handleLigatures}
-                  theme={theme}
-                />
-                <SettingsToggle
-                  label="Bracket Colors"
-                  checked={bracketColors}
-                  onChange={handleBracketColors}
-                  theme={theme}
-                />
-              </div>
-            </PopoverContent>
-          </Popover>
+                {/* Settings List */}
+                <div
+                  className="py-3 px-4 space-y-4 max-h-[360px] overflow-y-auto"
+                  style={{ scrollbarWidth: "thin" }}
+                >
+                  {/* Font Size */}
+                  <SettingRow label="Font Size" theme={theme}>
+                    <div className="flex items-center gap-1.5">
+                      <SettingSmallBtn
+                        onClick={() => handleFontSize(-1)}
+                        theme={theme}
+                      >
+                        <Minus className="w-3 h-3" />
+                      </SettingSmallBtn>
+                      <span
+                        className="text-xs font-mono w-7 text-center tabular-nums"
+                        style={{
+                          color: theme === "dark" ? "#c0caf5" : "#1e293b",
+                        }}
+                      >
+                        {fontSize}
+                      </span>
+                      <SettingSmallBtn
+                        onClick={() => handleFontSize(1)}
+                        theme={theme}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </SettingSmallBtn>
+                    </div>
+                  </SettingRow>
+
+                  {/* Tab Size */}
+                  <SettingRow label="Tab Size" theme={theme}>
+                    <div className="flex items-center gap-1">
+                      {[2, 4, 8].map((size) => {
+                        const active = tabSize === size;
+                        return (
+                          <button
+                            key={size}
+                            onClick={() => handleTabSize(size)}
+                            className="px-2.5 py-1 rounded-md text-[11px] font-mono font-medium transition-all duration-150"
+                            style={{
+                              background: active
+                                ? theme === "dark"
+                                  ? "#10b981"
+                                  : "#16a34a"
+                                : theme === "dark"
+                                  ? "rgba(255,255,255,0.06)"
+                                  : "rgba(0,0,0,0.05)",
+                              color: active
+                                ? "#fff"
+                                : theme === "dark"
+                                  ? "#8b949e"
+                                  : "#64748b",
+                            }}
+                          >
+                            {size}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </SettingRow>
+
+                  {/* Cursor Style */}
+                  <SettingRow label="Cursor" theme={theme}>
+                    <StyledSelect
+                      value={cursorStyle}
+                      onChange={(e) => handleCursorStyle(e.target.value)}
+                      theme={theme}
+                    >
+                      <option value="line">Line</option>
+                      <option value="block">Block</option>
+                      <option value="underline">Underline</option>
+                      <option value="line-thin">Thin Line</option>
+                      <option value="block-outline">Block Outline</option>
+                      <option value="underline-thin">Thin Underline</option>
+                    </StyledSelect>
+                  </SettingRow>
+
+                  {/* Whitespace */}
+                  <SettingRow label="Whitespace" theme={theme}>
+                    <StyledSelect
+                      value={whitespace}
+                      onChange={(e) => handleWhitespace(e.target.value)}
+                      theme={theme}
+                    >
+                      <option value="none">None</option>
+                      <option value="boundary">Boundary</option>
+                      <option value="selection">Selection</option>
+                      <option value="trailing">Trailing</option>
+                      <option value="all">All</option>
+                    </StyledSelect>
+                  </SettingRow>
+
+                  {/* Divider */}
+                  <div
+                    style={{
+                      height: 1,
+                      background:
+                        theme === "dark"
+                          ? "rgba(255,255,255,0.06)"
+                          : "rgba(0,0,0,0.07)",
+                    }}
+                  />
+
+                  {/* Toggles */}
+                  <SettingsToggle
+                    label="Minimap"
+                    checked={minimap}
+                    onChange={handleMinimap}
+                    theme={theme}
+                  />
+                  <SettingsToggle
+                    label="Line Numbers"
+                    checked={lineNumbers}
+                    onChange={handleLineNumbers}
+                    theme={theme}
+                  />
+                  <SettingsToggle
+                    label="Font Ligatures"
+                    checked={ligatures}
+                    onChange={handleLigatures}
+                    theme={theme}
+                  />
+                  <SettingsToggle
+                    label="Bracket Colors"
+                    checked={bracketColors}
+                    onChange={handleBracketColors}
+                    theme={theme}
+                  />
+                </div>
+              </PopoverContent>
+            </Popover>
           )}
         </div>
 
@@ -828,7 +1167,7 @@ export const Editor: React.FC<EditorProps> = ({
       <div className="flex-1 min-h-0">
         <MonacoEditor
           height="100%"
-          defaultLanguage="java"
+          language="java"
           theme={customThemeName}
           value={code}
           onChange={onChange}
