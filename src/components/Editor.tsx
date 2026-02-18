@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import * as React from "react";
 import MonacoEditor, { OnMount, BeforeMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import {
@@ -265,37 +265,37 @@ export const Editor: React.FC<EditorProps> = ({
   theme,
   output = "",
 }) => {
-  const editorRef = useRef<any>(null);
-  const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
-  const [copied, setCopied] = useState(false);
-  const [wordWrap, setWordWrap] = useState(true);
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const editorRef = React.useRef<any>(null);
+  const [cursorPos, setCursorPos] = React.useState({ line: 1, col: 1 });
+  const [copied, setCopied] = React.useState(false);
+  const [wordWrap, setWordWrap] = React.useState(true);
+  const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
   const isMobile = useIsMobile();
 
   // Editor settings with localStorage persistence
-  const [fontSize, setFontSize] = useState<number>(
+  const [fontSize, setFontSize] = React.useState<number>(
     () => Number(localStorage.getItem("editor_fontSize")) || 14,
   );
-  const [tabSize, setTabSize] = useState<number>(
+  const [tabSize, setTabSize] = React.useState<number>(
     () => Number(localStorage.getItem("editor_tabSize")) || 4,
   );
-  const [minimap, setMinimap] = useState<boolean>(
+  const [minimap, setMinimap] = React.useState<boolean>(
     () => localStorage.getItem("editor_minimap") === "true",
   );
-  const [lineNumbers, setLineNumbers] = useState<boolean>(
+  const [lineNumbers, setLineNumbers] = React.useState<boolean>(
     () => localStorage.getItem("editor_lineNumbers") !== "false",
   );
-  const [ligatures, setLigatures] = useState<boolean>(
+  const [ligatures, setLigatures] = React.useState<boolean>(
     () => localStorage.getItem("editor_ligatures") !== "false",
   );
-  const [bracketColors, setBracketColors] = useState<boolean>(
+  const [bracketColors, setBracketColors] = React.useState<boolean>(
     () => localStorage.getItem("editor_bracketColors") !== "false",
   );
-  const [whitespace, setWhitespace] = useState<string>(
+  const [whitespace, setWhitespace] = React.useState<string>(
     () => localStorage.getItem("editor_whitespace") || "none",
   );
-  const [cursorStyle, setCursorStyleState] = useState<string>(
+  const [cursorStyle, setCursorStyleState] = React.useState<string>(
     () => localStorage.getItem("editor_cursorStyle") || "line",
   );
 
@@ -605,7 +605,7 @@ export const Editor: React.FC<EditorProps> = ({
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (copied) {
       const t = setTimeout(() => setCopied(false), 1500);
       return () => clearTimeout(t);
@@ -619,7 +619,7 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   // Persist and apply a setting change
-  const updateSetting = useCallback(
+  const updateSetting = React.useCallback(
     (key: string, value: any, monacoOption: Record<string, any>) => {
       localStorage.setItem(`editor_${key}`, String(value));
       editorRef.current?.updateOptions(monacoOption);
