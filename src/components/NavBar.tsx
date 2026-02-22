@@ -23,6 +23,7 @@ interface NavbarProps {
   onToggleConsole: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  navLinks?: { label: string; onClick: () => void }[];
 }
 
 const THEMES: { key: Theme; label: string; swatch: string }[] = [
@@ -40,6 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleConsole,
   isFullscreen,
   onToggleFullscreen,
+  navLinks = [],
 }) => {
   const [showSettings, setShowSettings] = useState(false);
   const isMobile = useIsMobile();
@@ -71,11 +73,26 @@ export const Navbar: React.FC<NavbarProps> = ({
         </a>
       </div>
 
-      {/* Center: Run Button */}
+      {/* Center: Run Button and Nav Links */}
       <nav
-        className="flex items-center gap-2"
+        className="flex items-center gap-4"
         aria-label="Code execution controls"
       >
+        {/* Navigation Links */}
+        {navLinks.length > 0 && (
+          <div className="flex gap-2">
+            {navLinks.map((link, idx) => (
+              <button
+                key={link.label + idx}
+                onClick={link.onClick}
+                className="px-3 py-1.5 rounded text-sm font-medium bg-transparent hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                style={{ color: "var(--logo-accent-from)" }}
+              >
+                {link.label}
+              </button>
+            ))}
+          </div>
+        )}
         {/* Run Button */}
         <button
           id="run-button"

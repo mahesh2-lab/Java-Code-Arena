@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { Navbar } from "./components/NavBar";
+import React, { Suspense } from "react";
 import { Editor } from "./components/Editor";
 import { Console, LogEntry, ErrorReview } from "./components/Console";
 import { useIsMobile } from "./hooks/use-mobile";
@@ -61,6 +62,77 @@ export default function App() {
   const [isForkedSession, setIsForkedSession] = useState<boolean>(false);
   const [errorReview, setErrorReview] = useState<ErrorReview | null>(null);
   const [aiReview, setAiReview] = useState<string | null>(null);
+  // Blog state
+  const [blogs, setBlogs] = useState<any[]>([]);
+  const [blogError, setBlogError] = useState<string | null>(null);
+  const [showBlogList, setShowBlogList] = useState(false);
+  const [showBlogForm, setShowBlogForm] = useState(false);
+  const [blogForm, setBlogForm] = useState({ title: "", content: "" });
+  const [blogLoading, setBlogLoading] = useState(false);
+  // Fetch blogs from API or fallback to static
+  const fetchBlogs = async () => {
+    setBlogLoading(true);
+    setBlogError(null);
+    try {
+      const res = await fetch("/api/blogs");
+      if (res.ok) {
+        const data = await res.json();
+        setBlogs(data.blogs || []);
+      } else {
+        // fallback to static
+        const staticBlogs = await Promise.all([
+          fetch("/blog/docker-for-java-beginners.md")
+            .then((r) => r.text())
+            .then((content) => ({
+              title: "Getting Started with Docker for Java Developers",
+              content,
+            })),
+          fetch("/blog/introduction-to-java-ecosystem.md")
+            .then((r) => r.text())
+            .then((content) => ({
+              title: "Introduction to Java and Its Ecosystem",
+              content,
+            })),
+          fetch("/blog/spring-boot-beginners-guide.md")
+            .then((r) => r.text())
+            .then((content) => ({
+              title: "Beginner's Guide to Spring Boot Framework",
+              content,
+            })),
+        ]);
+        setBlogs(staticBlogs);
+      }
+    } catch (e) {
+      setBlogError("Failed to load blogs.");
+    } finally {
+      setBlogLoading(false);
+    }
+  };
+
+  // Add blog via API
+  const addBlog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBlogLoading(true);
+    setBlogError(null);
+    try {
+      const res = await fetch("/api/blogs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(blogForm),
+      });
+      if (res.ok) {
+        setBlogForm({ title: "", content: "" });
+        fetchBlogs();
+        setShowBlogForm(false);
+      } else {
+        setBlogError("Failed to add blog.");
+      }
+    } catch (e) {
+      setBlogError("Failed to add blog.");
+    } finally {
+      setBlogLoading(false);
+    }
+  };
 
   const isMobile = useIsMobile();
   const isReady = true; // Placeholder since CheerpJ is removed
@@ -283,6 +355,31 @@ export default function App() {
     }
   };
 
+  // Navigation bar links
+  const navLinks = [
+    { label: "Home", onClick: () => (window.location.href = "/") },
+    {
+      label: "Search Blogs",
+      onClick: async () => {
+        if (!blogs.length) await fetchBlogs();
+        const q = window.prompt("Enter blog search term:");
+        if (q && q.trim()) {
+          const term = q.trim().toLowerCase();
+          const results = blogs.filter(
+            (b) =>
+              b.title.toLowerCase().includes(term) ||
+              b.content.toLowerCase().includes(term),
+          );
+          if (results.length) {
+            window.alert(results.map((b) => `• ${b.title}`).join("\n"));
+          } else {
+            window.alert("No matching blogs found.");
+          }
+        }
+      },
+    },
+  ];
+
   return (
     <div
       data-theme={theme}
@@ -326,6 +423,7 @@ export default function App() {
         onToggleConsole={() => setShowConsole(!showConsole)}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
+        navLinks={navLinks}
       />
 
       {/* Main Content: Mobile Tab View or Desktop Split View */}
