@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, Suspense } from "react";
 import { Route, Switch } from "wouter";
 import BlogPost from "./pages/BlogPost";
+import BlogList from "./pages/BlogList";
 import { Navbar } from "./components/NavBar";
 import { Editor } from "./components/Editor";
 import { Console, LogEntry, ErrorReview } from "./components/Console";
