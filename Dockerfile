@@ -21,7 +21,9 @@ RUN if [ -f pnpm-lock.yaml ]; then \
     fi
 
 # Copy source and build
-COPY tsconfig.json vite.config.ts tailwind.config.* postcss.config.* ./
+COPY tsconfig.json vite.config.ts ./
+# Copy tailwind config if it exists
+COPY tailwind.config.* ./
 COPY src/ ./src/
 COPY public/ ./public/
 COPY index.html ./
