@@ -147,6 +147,9 @@ export const XTermTerminal = forwardRef<XTermTerminalRef, XTermTerminalProps>(
             termRef.current = term;
             fitAddonRef.current = fitAddon;
 
+            // Welcome banner removed for cleaner look
+            term.writeln("\x1b[2;36m☕ JavaRena Terminal Ready\x1b[0m");
+            term.writeln("");
 
             // Resize observer
             const resizeObserver = new ResizeObserver(() => {
@@ -292,10 +295,16 @@ export const XTermTerminal = forwardRef<XTermTerminalRef, XTermTerminalProps>(
 
                     if (!term || !socket) return;
 
+                    // Welcome banner removed for cleaner look
+                    term.writeln("\x1b[2;36m☕ JavaRena Terminal Ready\x1b[0m");
+                    term.writeln("");
+
                     setStatus("compiling");
 
                     socket.emit("terminal:run", { code });
 
+                    // After emitting, optimistically set to running
+                    // (server will emit output + exit events)
                     setStatus("running");
                 },
 
