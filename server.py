@@ -58,11 +58,11 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'javarena-secret-key-cha
 
 CORS(app, origins="*")
 
-# Initialize Socket.IO with eventlet async mode for production
+# Initialize Socket.IO with auto-detecting async mode
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
-    async_mode='threading',   # Use threading mode (compatible with waitress)
+    async_mode=None,          # Auto-detect (eventlet > gevent > threading)
     logger=False,
     engineio_logger=False,
     ping_timeout=30,
@@ -1007,5 +1007,5 @@ if __name__ == "__main__":
     print(f"  {MAGENTA}{BOLD}>>> Socket.IO ready for interactive sessions{RESET}")
     print()
 
-    # Use socketio.run for development; in production use gunicorn+eventlet
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False, use_reloader=False)
+    # Use socketio.run which handles choosing the right server (eventlet/gevent/werkzeug)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
