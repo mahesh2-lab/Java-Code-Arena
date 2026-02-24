@@ -1,3 +1,10 @@
+try:
+    import eventlet
+    eventlet.monkey_patch()
+    print("[BOOT] Eventlet monkey patching applied")
+except ImportError:
+    pass
+
 from codeReview import explain_error, ai_review_error
 from nanoid import generate
 import re
@@ -125,7 +132,7 @@ print(f"Java Compiler Server - Detected OS: {SYSTEM}")
 
 def find_java():
     """Find java and javac executables"""
-    global JAVA_PATH, JAVAC_PATH
+    global JAVA_PATH, JAVAC_PATH, JAVA_AVAILABLE
 
     if IS_WINDOWS:
         javac = shutil.which("javac")
@@ -134,6 +141,7 @@ def find_java():
         if javac and java:
             JAVA_PATH = java
             JAVAC_PATH = javac
+            JAVA_AVAILABLE = True
             return True
 
         search_dirs = [
@@ -153,6 +161,7 @@ def find_java():
                         if os.path.exists(javac_exe) and os.path.exists(java_exe):
                             JAVA_PATH = java_exe
                             JAVAC_PATH = javac_exe
+                            JAVA_AVAILABLE = True
                             print(f"[OK] Found Java at: {JAVA_PATH}")
                             return True
             except Exception as e:
@@ -167,6 +176,7 @@ def find_java():
         if javac and java:
             JAVA_PATH = java
             JAVAC_PATH = javac
+            JAVA_AVAILABLE = True
             return True
 
         for bin_path in ["/usr/bin", "/usr/local/bin", "/opt/java/bin"]:
@@ -175,6 +185,7 @@ def find_java():
             if os.path.exists(javac_path) and os.path.exists(java_path):
                 JAVA_PATH = java_path
                 JAVAC_PATH = javac_path
+                JAVA_AVAILABLE = True
                 return True
 
         return False
@@ -459,13 +470,12 @@ def handle_terminal_run(data):
 
         # Start interactive process
         proc = subprocess.Popen(
-            [JAVA_PATH, "-cp", temp_dir, "Main"],
+            [JAVA_PATH, "-Dfile.encoding=UTF-8", "-Dsun.stdout.encoding=UTF-8", "-cp", temp_dir, "Main"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            text=True,
-            encoding='utf-8',
-            bufsize=0,          # Unbuffered
+            text=False,          # Raw bytes for maximum control
+            bufsize=0,
             cwd=temp_dir,
         )
 
@@ -475,17 +485,23 @@ def handle_terminal_run(data):
 
         print(f"[TERMINAL] Started process PID={proc.pid} for sid={sid}")
 
-        # Stream output in background thread
+        # Stream output in background task
         def _stream_output():
+            import codecs
+            decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
             try:
-                # Read char-by-char so prompts (without newlines) are streamed immediately
+                fd = proc.stdout.fileno()
                 while True:
-                    chunk = proc.stdout.read(1)
+                    # Use os.read to get data as soon as it's available in the pipe
+                    chunk = os.read(fd, 4096)
                     if not chunk:
                         break
-                    # Convert \n → \r\n for xterm compatibility
-                    chunk = chunk.replace('\n', '\r\n')
-                    socketio.emit('terminal:output', {'data': chunk}, to=sid)
+                    
+                    decoded_text = decoder.decode(chunk)
+                    if decoded_text:
+                        # Convert \n → \r\n for xterm compatibility
+                        formatted_text = decoded_text.replace('\n', '\r\n')
+                        socketio.emit('terminal:output', {'data': formatted_text}, to=sid)
 
                 exit_code = proc.wait()
                 print(f"[TERMINAL] Process PID={proc.pid} exited with code {exit_code}")
@@ -496,8 +512,7 @@ def handle_terminal_run(data):
             finally:
                 _kill_process(sid)
 
-        thread = threading.Thread(target=_stream_output, daemon=True)
-        thread.start()
+        socketio.start_background_task(_stream_output)
 
     except Exception as e:
         print(f"[TERMINAL] Exception for sid={sid}: {e}")
@@ -521,6 +536,9 @@ def handle_terminal_input(data):
     if proc and proc.poll() is None:
         try:
             input_data = data.get('data', '')
+            if isinstance(input_data, str):
+                input_data = input_data.encode('utf-8')
+            
             proc.stdin.write(input_data)
             proc.stdin.flush()
         except BrokenPipeError:
