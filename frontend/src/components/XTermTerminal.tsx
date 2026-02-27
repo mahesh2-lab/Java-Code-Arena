@@ -174,7 +174,10 @@ export const XTermTerminal = forwardRef<XTermTerminalRef, XTermTerminalProps>(
 
         // ── Initialize Socket.IO connection ───────────────────
         useEffect(() => {
-            const socket = io(getBaseUrl(), {
+            const baseUrl = getBaseUrl();
+            // If baseUrl is empty string (production), connect to the current origin
+            // Otherwise connect to the specified backend URL
+            const socket = io(baseUrl || window.location.origin, {
                 transports: ["polling", "websocket"],
                 reconnection: true,
                 reconnectionAttempts: 5,
