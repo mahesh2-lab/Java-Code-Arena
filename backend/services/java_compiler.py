@@ -10,10 +10,11 @@ JAVA_PATH = None
 JAVAC_PATH = None
 JAVA_AVAILABLE = False
 
+
 def find_java():
     """Find java and javac executables"""
     global JAVA_PATH, JAVAC_PATH, JAVA_AVAILABLE
-    
+
     if JAVA_AVAILABLE and JAVA_PATH and JAVAC_PATH:
         return True
 
@@ -73,14 +74,17 @@ def find_java():
 
         return False
 
-def compile_java(source_code, stdin_input=""):
-    """Compile and run Java source code with optional stdin input"""
+
+def compile_java(source_code, stdin_input="", class_name="Main"):
+    """Compile and run Java source code with optional stdin input and dynamic class name"""
     if not find_java():
         return {"success": False, "error": "Java compiler (javac) not found on this system"}
 
     try:
         temp_dir = tempfile.mkdtemp()
-        source_file = Path(temp_dir) / "Main.java"
+        # Use provided class_name or default to 'Main'
+        class_name = class_name or "Main"
+        source_file = Path(temp_dir) / f"{class_name}.java"
         source_file.write_text(source_code, encoding='utf-8')
 
         compile_cmd = [JAVAC_PATH, "-encoding", "UTF-8", str(source_file)]
@@ -98,8 +102,9 @@ def compile_java(source_code, stdin_input=""):
                 "error": result.stderr or "Compilation failed"
             }
 
-        run_cmd = [JAVA_PATH, "-Dfile.encoding=UTF-8", "-Dsun.stdout.encoding=UTF-8", "-Dsun.stderr.encoding=UTF-8", "-cp", temp_dir, "Main"]
-        
+        run_cmd = [JAVA_PATH, "-Dfile.encoding=UTF-8", "-Dsun.stdout.encoding=UTF-8",
+                   "-Dsun.stderr.encoding=UTF-8", "-cp", temp_dir, class_name]
+
         result = subprocess.run(
             run_cmd,
             input=stdin_input if stdin_input else None,
@@ -144,13 +149,16 @@ def compile_java(source_code, stdin_input=""):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-def run_interactive_java(temp_dir):
-    """Start an interactive Java process in the given temp directory"""
+
+def run_interactive_java(temp_dir, class_name="Main"):
+    """Start an interactive Java process in the given temp directory with dynamic class name"""
     if not find_java():
         raise RuntimeError("Java not available")
-        
-    cmd = [JAVA_PATH, "-Dfile.encoding=UTF-8", "-Dsun.stdout.encoding=UTF-8", "-Dsun.stderr.encoding=UTF-8", "-cp", temp_dir, "Main"]
-    
+
+    class_name = class_name or "Main"
+    cmd = [JAVA_PATH, "-Dfile.encoding=UTF-8", "-Dsun.stdout.encoding=UTF-8",
+           "-Dsun.stderr.encoding=UTF-8", "-cp", temp_dir, class_name]
+
     # On Windows, running through cmd /c can sometimes improve pipe responsiveness
     if IS_WINDOWS:
         cmd = ["cmd", "/c"] + cmd
@@ -160,11 +168,12 @@ def run_interactive_java(temp_dir):
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        bufsize=0, # Completely unbuffered
+        bufsize=0,  # Completely unbuffered
         cwd=temp_dir,
     )
 
-def prepare_interactive_java(code):
+
+def prepare_interactive_java(code, class_name="Main"):
     """
     Prepare for interactive Java execution:
     1. Create temp dir
@@ -175,29 +184,34 @@ def prepare_interactive_java(code):
     if not find_java():
         raise RuntimeError("Java not available")
 
+    class_name = class_name or "Main"
     temp_dir = tempfile.mkdtemp()
-    source_file = Path(temp_dir) / "Main.java"
+    source_file = Path(temp_dir) / f"{class_name}.java"
     source_file.write_text(code, encoding='utf-8')
 
+    if not JAVAC_PATH:
+        raise RuntimeError("JAVAC_PATH is not set. Java compiler not found.")
+    compile_cmd = [str(JAVAC_PATH), "-encoding", "UTF-8", str(source_file)]
     result = subprocess.run(
-        [JAVAC_PATH, "-encoding", "UTF-8", str(source_file)],
+        compile_cmd,
         capture_output=True,
         text=True,
         encoding='utf-8',
         cwd=temp_dir
     )
-    
+
     return temp_dir, result
 
-def start_interactive_session(code):
+
+def start_interactive_session(code, class_name="Main"):
     """
-    High-level function to compile and start an interactive Java process.
+    High-level function to compile and start an interactive Java process with dynamic class name.
     Returns (proc, temp_dir, compile_result)
     """
-    temp_dir, compile_result = prepare_interactive_java(code)
-    
+    temp_dir, compile_result = prepare_interactive_java(code, class_name)
+
     if compile_result.returncode != 0:
         return None, temp_dir, compile_result
-        
-    proc = run_interactive_java(temp_dir)
+
+    proc = run_interactive_java(temp_dir, class_name)
     return proc, temp_dir, compile_result
