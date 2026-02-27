@@ -7,7 +7,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Editor } from "@/components/Editor";
 import { Console } from "@/components/Console";
-import { Play, RotateCcw, Save, Share2, Code2, Eye, Terminal as TerminalIcon, GitGraph } from "lucide-react";
+import {
+  Play,
+  RotateCcw,
+  Save,
+  Share2,
+  Code2,
+  Eye,
+  Terminal as TerminalIcon,
+  GitGraph,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateSnippet } from "@/hooks/use-snippets";
 import { Theme, LogEntry } from "@/types";
@@ -263,7 +272,7 @@ export default function Playground() {
           <Button
             onClick={runCode}
             disabled={isRunning || isVisualizing}
-            className="glow-primary min-w-[120px] bg-primary font-semibold text-primary-foreground hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all"
+            className="glow-primary min-w-30 bg-primary font-semibold text-primary-foreground hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all"
           >
             {isRunning ? (
               <span className="flex items-center gap-2">
@@ -322,7 +331,7 @@ export default function Playground() {
                     </TabsTrigger>
                   </TabsList>
 
-                  {activeTab === 'graph' && visualizeSteps.length > 0 && (
+                  {activeTab === "graph" && visualizeSteps.length > 0 && (
                     <div className="text-[10px] font-mono text-slate-500 uppercase tracking-widest animate-pulse">
                       Live Simulation
                     </div>
@@ -330,11 +339,22 @@ export default function Playground() {
                 </div>
 
                 <div className="flex-1 relative overflow-hidden">
-                  <TabsContent value="console" className="absolute inset-0 m-0 border-none p-0 flex flex-col h-full">
+                  <TabsContent
+                    value="console"
+                    className="absolute inset-0 m-0 border-none p-0 flex flex-col h-full"
+                  >
                     <Console
-                      output={visualizeSteps.length > 0 && activeTab === 'graph'
-                        ? (visualizeSteps[currentStep]?.console || "").split('\n').filter(Boolean).map((t: string) => ({ text: t, type: 'info', timestamp: Date.now() }))
-                        : output
+                      output={
+                        visualizeSteps.length > 0 && activeTab === "graph"
+                          ? (visualizeSteps[currentStep]?.console || "")
+                              .split("\n")
+                              .filter(Boolean)
+                              .map((t: string) => ({
+                                text: t,
+                                type: "info",
+                                timestamp: Date.now(),
+                              }))
+                          : output
                       }
                       executionTime={executionTime}
                       onClear={() => {
@@ -352,13 +372,20 @@ export default function Playground() {
                     />
                   </TabsContent>
 
-                  <TabsContent value="graph" className="absolute inset-0 m-0 border-none p-0 flex flex-col h-full">
+                  <TabsContent
+                    value="graph"
+                    className="absolute inset-0 m-0 border-none p-0 flex flex-col h-full"
+                  >
                     {visualizeSteps.length > 0 ? (
                       <div className="flex flex-col h-full">
                         <div className="flex-1 relative">
                           <MemoryGraph
-                            nodes={visualizeSteps[currentStep]?.graph.nodes || []}
-                            edges={visualizeSteps[currentStep]?.graph.edges || []}
+                            nodes={
+                              visualizeSteps[currentStep]?.graph.nodes || []
+                            }
+                            edges={
+                              visualizeSteps[currentStep]?.graph.edges || []
+                            }
                           />
                         </div>
                         <Timeline
@@ -372,8 +399,12 @@ export default function Playground() {
                       <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-4">
                         <GitGraph className="h-12 w-12 opacity-20" />
                         <div className="text-center space-y-1">
-                          <p className="text-sm font-medium">No visualization active</p>
-                          <p className="text-xs opacity-60">Click "Visualize" above to see the memory graph</p>
+                          <p className="text-sm font-medium">
+                            No visualization active
+                          </p>
+                          <p className="text-xs opacity-60">
+                            Click "Visualize" above to see the memory graph
+                          </p>
                         </div>
                       </div>
                     )}

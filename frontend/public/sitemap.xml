@@ -1,8 +1,38 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://javarena.hostmyidea.me/</loc>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
+<url>
+  <loc>https://javarena.hostmyidea.me/</loc>
+  <changefreq>daily</changefreq>
+  <priority>1.0</priority>
+</url>
+<url>
+  <loc>https://javarena.hostmyidea.me/blog/docker-for-java-beginners</loc>
+  <changefreq>weekly</changefreq>
+  <priority>0.8</priority>
+</url>
+<url>
+  <loc>https://javarena.hostmyidea.me/blog/dockerizing-spring-boot-guide</loc>
+  <changefreq>weekly</changefreq>
+  <priority>0.8</priority>
+</url>
+<url>
+  <loc>https://javarena.hostmyidea.me/blog/introduction-to-java-ecosystem</loc>
+  <changefreq>weekly</changefreq>
+  <priority>0.8</priority>
+</url>
+<url>
+  <loc>https://javarena.hostmyidea.me/blog/java-collections-framework-beginners</loc>
+  <changefreq>weekly</changefreq>
+  <priority>0.8</priority>
+</url>
+<url>
+  <loc>https://javarena.hostmyidea.me/blog/spring-boot-beginners-guide</loc>
+  <changefreq>weekly</changefreq>
+  <priority>0.8</priority>
+</url>
+<url>
+  <loc>https://javarena.hostmyidea.me/blog/understanding-java-jvm</loc>
+  <changefreq>weekly</changefreq>
+  <priority>0.8</priority>
+</url>
 </urlset>

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Blog Viewer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.2.0/github-markdown.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+    />
+    <style>
+      body {
+        background: #181a1b;
+        color: #eaeaea;
+        font-family: "Segoe UI", "Inter", "Roboto", Arial, sans-serif;
+      }
+      .markdown-body {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 32px;
+        background: #23272e;
+        border-radius: 12px;
+        font-size: 18px;
+      }
+      .blog-header {
+        max-width: 800px;
+        margin: 40px auto 0 auto;
+        padding: 32px 32px 0 32px;
+        background: #23272e;
+        border-radius: 12px 12px 0 0;
+        border-bottom: 1px solid #2d3748;
+      }
+      .blog-title {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #eaeaea;
+        margin-bottom: 8px;
+        font-family: "Inter", "Segoe UI", Arial, sans-serif;
+      }
+      .blog-meta {
+        font-size: 1rem;
+        color: #b3b3b3;
+        margin-bottom: 12px;
+        font-family: "Inter", "Segoe UI", Arial, sans-serif;
+      }
+      .blog-tags {
+        margin-bottom: 8px;
+      }
+      .blog-tag {
+        display: inline-block;
+        background: #2d3748;
+        color: #eaeaea;
+        padding: 4px 12px;
+        margin: 0 8px 8px 0;
+        border-radius: 8px;
+        font-size: 15px;
+        font-family: "Inter", "Segoe UI", Arial, sans-serif;
+        letter-spacing: 0.02em;
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="blog-header">
+      <div class="blog-title" id="blog-title">Loading...</div>
+      <div class="blog-meta" id="blog-meta"></div>
+      <div class="blog-tags" id="tags"></div>
+    </div>
+    <div class="markdown-body" id="content">Loading...</div>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+      // Get slug from URL path
+      function getSlug() {
+        const path = window.location.pathname;
+        const match = path.match(/^\/blog\/(.+)$/);
+        // If path is exactly /blog/ or /blog, redirect to default slug
+        if (path === "/blog/" || path === "/blog") {
+          window.location.replace("/blog/docker-for-java-beginners");
+          return null;
+        }
+        return match ? match[1] : null;
+      }
+
+      // Extract metadata from YAML frontmatter
+      function extractFrontmatter(md) {
+        const fmMatch = md.match(/^---([\s\S]*?)---/);
+        if (!fmMatch) return {};
+        const fm = fmMatch[1];
+        const meta = {};
+        fm.split("\n").forEach((line) => {
+          const kv = line.match(/^([\w]+):\s*(.*)$/);
+          if (kv) {
+            let key = kv[1].trim();
+            let val = kv[2].trim();
+            // Remove quotes
+            val = val.replace(/^['"]|['"]$/g, "");
+            // Parse tags array
+            if (key === "tags") {
+              val = val.replace(/^\[|\]$/g, "");
+              meta[key] = val
+                .split(",")
+                .map((t) => t.trim().replace(/^['"]|['"]$/g, ""))
+                .filter(Boolean);
+            } else {
+              meta[key] = val;
+            }
+          }
+        });
+        return meta;
+      }
+
+      // Extract tags from YAML frontmatter or loose header tags field
+      function extractTags(md) {
+        // Try YAML frontmatter
+        const meta = extractFrontmatter(md);
+        if (meta.tags && Array.isArray(meta.tags)) return meta.tags;
+        // Try loose header tags: tags: ["tag1", "tag2"]
+        const headerMatch = md.match(/^tags:\s*\[(.*?)\]/m);
+        if (headerMatch) {
+          return headerMatch[1]
+            .split(",")
+            .map((t) => t.trim().replace(/^['"]|['"]$/g, ""))
+            .filter(Boolean);
+        }
+        // Inline tags: #tag1 #tag2
+        const inlineTags = Array.from(md.matchAll(/#([\w-]+)/g)).map(
+          (m) => m[1],
+        );
+        return inlineTags;
+      }
+
+      async function renderMarkdown() {
+        const slug = getSlug();
+        if (!slug) {
+          document.getElementById("content").innerHTML = "No blog slug found.";
+          document.getElementById("blog-title").innerHTML = "";
+          document.getElementById("blog-meta").innerHTML = "";
+          document.getElementById("tags").innerHTML = "";
+          return;
+        }
+        const mdUrl = `/blog/${slug}.md`;
+        try {
+          const res = await fetch(mdUrl);
+          if (!res.ok) throw new Error("Not found");
+          const md = await res.text();
+          const meta = extractFrontmatter(md);
+          const tags = extractTags(md);
+          // Render header
+          document.getElementById("blog-title").innerHTML =
+            meta.title || slug.replace(/-/g, " ");
+          document.getElementById("blog-meta").innerHTML =
+            (meta.author ? `<span>By <b>${meta.author}</b></span>` : "") +
+            (meta.date
+              ? ` &nbsp; <span style="color:#888">${meta.date}</span>`
+              : "");
+          if (tags.length) {
+            document.getElementById("tags").innerHTML = tags
+              .map((tag) => `<span class="blog-tag">#${tag}</span>`)
+              .join("");
+          } else {
+            document.getElementById("tags").innerHTML = "";
+          }
+          // Render markdown content
+          const html = marked.parse(md.replace(/^---[\s\S]*?---/, ""), {
+            highlight: (code) => hljs.highlightAuto(code).value,
+          });
+          document.getElementById("content").innerHTML = html;
+        } catch (e) {
+          document.getElementById("content").innerHTML =
+            '<span style="color:red">Blog not found or failed to load.</span>';
+          document.getElementById("blog-title").innerHTML = "";
+          document.getElementById("blog-meta").innerHTML = "";
+          document.getElementById("tags").innerHTML = "";
+        }
+      }
+      renderMarkdown();
+    </script>
+  </body>
+</html>

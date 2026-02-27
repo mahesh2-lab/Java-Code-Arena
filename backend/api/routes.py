@@ -8,6 +8,7 @@ from services.share_service import check_rate_limit, generate_share_id, sanitize
 from services.codeReview import explain_error, ai_review_error
 from api.sockets import interactive_processes
 
+
 def register_routes(app):
     @app.route("/api/share", methods=["POST"])
     def create_share():
@@ -71,7 +72,8 @@ def register_routes(app):
                 conn.close()
                 return jsonify({"success": False, "error": "Share has expired"}), 410
 
-            cursor.execute("UPDATE shares SET views = views + 1 WHERE id = ?", (share_id,))
+            cursor.execute(
+                "UPDATE shares SET views = views + 1 WHERE id = ?", (share_id,))
             conn.commit()
             conn.close()
 
@@ -111,10 +113,9 @@ def register_routes(app):
             data = request.get_json()
             source_code = data.get("code", "")
             stdin_input = data.get("stdin", "")
-
             if not source_code:
                 return jsonify({"success": False, "error": "No code provided"}), 400
-
+            print(f"[COMPILE REQUEST] Code length: {len(source_code)}, Stdin length: {len(stdin_input)}")
             result = compile_java(source_code, stdin_input)
 
             error_text = result.get('error', '')

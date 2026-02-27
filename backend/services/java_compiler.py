@@ -75,19 +75,29 @@ def find_java():
         return False
 
 
-def compile_java(source_code, stdin_input="", class_name="Main"):
-    """Compile and run Java source code with optional stdin input and dynamic class name"""
+def compile_java(source_code, stdin_input=""):
+    """Compile and run Java source code with optional stdin input. Class name is always extracted from code."""
+    print("[DEBUG] Starting compile_java function.")
     if not find_java():
+        print("[DEBUG] Java compiler not found.")
         return {"success": False, "error": "Java compiler (javac) not found on this system"}
 
     try:
+        print("[DEBUG] Creating temp directory for Java compilation.")
         temp_dir = tempfile.mkdtemp()
-        # Use provided class_name or default to 'Main'
-        class_name = class_name or "Main"
-        source_file = Path(temp_dir) / f"{class_name}.java"
+        import re
+        match = re.search(r'public\s+class\s+(\w+)', source_code)
+        class_name_extracted = match.group(1) if match else "Main"
+        print(f"[DEBUG] Extracted class name: {class_name_extracted}")
+        source_file = Path(temp_dir) / f"{class_name_extracted}.java"
+        print(f"[DEBUG] Writing source file: {source_file}")
         source_file.write_text(source_code, encoding='utf-8')
+        class_name = class_name_extracted
 
+        print(
+            f"[DEBUG] Compiling Java code with class name: {class_name} in temp dir: {temp_dir}")
         compile_cmd = [JAVAC_PATH, "-encoding", "UTF-8", str(source_file)]
+        print(f"[DEBUG] Running compile command: {' '.join(compile_cmd)}")
         result = subprocess.run(
             compile_cmd,
             capture_output=True,
@@ -97,6 +107,9 @@ def compile_java(source_code, stdin_input="", class_name="Main"):
         )
 
         if result.returncode != 0:
+            print("[DEBUG] Compilation failed.")
+            print(f"[DEBUG] Compiler stderr: {result.stderr}")
+            shutil.rmtree(temp_dir)
             return {
                 "success": False,
                 "error": result.stderr or "Compilation failed"
@@ -104,7 +117,7 @@ def compile_java(source_code, stdin_input="", class_name="Main"):
 
         run_cmd = [JAVA_PATH, "-Dfile.encoding=UTF-8", "-Dsun.stdout.encoding=UTF-8",
                    "-Dsun.stderr.encoding=UTF-8", "-cp", temp_dir, class_name]
-
+        print(f"[DEBUG] Running execution command: {' '.join(run_cmd)}")
         result = subprocess.run(
             run_cmd,
             input=stdin_input if stdin_input else None,
@@ -117,9 +130,9 @@ def compile_java(source_code, stdin_input="", class_name="Main"):
 
         output = result.stdout
         error = result.stderr
-
+        print("[DEBUG] Execution finished. Cleaning up temp directory.")
         shutil.rmtree(temp_dir)
-
+        print("[DEBUG] Returning result.")
         return {
             "success": True,
             "output": output,
@@ -184,9 +197,12 @@ def prepare_interactive_java(code, class_name="Main"):
     if not find_java():
         raise RuntimeError("Java not available")
 
-    class_name = class_name or "Main"
+    # Extract public class name from code
+    import re
+    match = re.search(r'public\s+class\s+(\w+)', code)
+    class_name_extracted = match.group(1) if match else "Main"
     temp_dir = tempfile.mkdtemp()
-    source_file = Path(temp_dir) / f"{class_name}.java"
+    source_file = Path(temp_dir) / f"{class_name_extracted}.java"
     source_file.write_text(code, encoding='utf-8')
 
     if not JAVAC_PATH:
@@ -200,7 +216,7 @@ def prepare_interactive_java(code, class_name="Main"):
         cwd=temp_dir
     )
 
-    return temp_dir, result
+    return temp_dir, class_name_extracted, result
 
 
 def start_interactive_session(code, class_name="Main"):
@@ -208,10 +224,11 @@ def start_interactive_session(code, class_name="Main"):
     High-level function to compile and start an interactive Java process with dynamic class name.
     Returns (proc, temp_dir, compile_result)
     """
-    temp_dir, compile_result = prepare_interactive_java(code, class_name)
+    temp_dir, class_name_extracted, compile_result = prepare_interactive_java(
+        code)
 
     if compile_result.returncode != 0:
         return None, temp_dir, compile_result
 
-    proc = run_interactive_java(temp_dir, class_name)
+    proc = run_interactive_java(temp_dir, class_name_extracted)
     return proc, temp_dir, compile_result

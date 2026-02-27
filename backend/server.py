@@ -1,8 +1,27 @@
 import platform
-import sys
-import os
-import threading
+from flask import send_from_directory
+from api.sockets import register_socket_events
+from api.routes import register_routes
+from services.share_service import cleanup_expired_shares
+import services.java_compiler as jc
+from utils.helpers import _boot_step, _boot_step_fail, get_java_version
+from core.database import init_share_db
+from core.config import SECRET_KEY, REQUIRED_PACKAGES, SYSTEM, IS_WINDOWS, IS_LINUX, IS_MAC
+from datetime import datetime
+import glob
+from flask import send_from_directory, request, Response, jsonify
+from flask_socketio import SocketIO
+from flask_cors import CORS
+from flask import Flask, Response, send_from_directory, request
 import time
+import threading
+import os
+import sys
+import flask
+# Redirect /blog/ to default blog slug
+
+
+
 
 # Eventlet monkey patching for non-Windows platforms
 try:
@@ -11,22 +30,12 @@ try:
         eventlet.monkey_patch()
         print("[BOOT] Eventlet monkey patching applied")
     else:
-        print("[BOOT] Skipping eventlet monkey patching on Windows to avoid process conflicts")
+        print(
+            "[BOOT] Skipping eventlet monkey patching on Windows to avoid process conflicts")
 except ImportError:
     pass
 
-from flask import Flask
-from flask_cors import CORS
-from flask_socketio import SocketIO
-
 # Import local modules
-from core.config import SECRET_KEY, REQUIRED_PACKAGES, SYSTEM, IS_WINDOWS, IS_LINUX, IS_MAC
-from core.database import init_share_db
-from utils.helpers import _boot_step, _boot_step_fail, get_java_version
-import services.java_compiler as jc
-from services.share_service import cleanup_expired_shares
-from api.routes import register_routes
-from api.sockets import register_socket_events
 
 # Dependency check
 _missing = []
@@ -45,9 +54,10 @@ if _missing:
 base_dir = os.path.dirname(os.path.abspath(__file__))
 dist_path = os.path.join(base_dir, "dist")
 if not os.path.exists(dist_path):
-    dist_path = os.path.abspath(os.path.join(base_dir, "..", "frontend", "dist"))
+    dist_path = os.path.abspath(os.path.join(
+        base_dir, "..", "frontend", "dist"))
 
-app = Flask(__name__, 
+app = Flask(__name__,
             static_folder=dist_path,
             template_folder=dist_path,
             static_url_path='')
@@ -60,7 +70,8 @@ socketio = SocketIO(
     app,
     cors_allowed_origins="*",
     async_mode='threading',
-    transports=['polling', 'websocket'], # Allow both but polling is usually preferred on Windows dev
+    # Allow both but polling is usually preferred on Windows dev # type: ignore
+    transports=['polling', 'websocket'],
     logger=False,
     engineio_logger=False,
     ping_timeout=60,
@@ -72,7 +83,8 @@ register_routes(app)
 register_socket_events(socketio)
 
 # Serve SPA
-from flask import send_from_directory
+
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
@@ -80,6 +92,47 @@ def serve(path):
         return send_from_directory(app.static_folder, path)
     else:
         return send_from_directory(app.static_folder, 'index.html')
+
+
+@app.route('/blog/')
+def redirect_blog_default():
+    return flask.redirect('/blog/docker-for-java-beginners')
+
+@app.route('/blog/<slug>')
+def serve_blog_html(slug):
+    public_dir = os.path.join(os.path.dirname(__file__), 'public')
+    return send_from_directory(public_dir, 'blog.html')
+
+
+@app.route('/blog/<slug>.md')
+def serve_blog_md(slug):
+    public_dir = os.path.join(os.path.dirname(__file__), 'public')
+    filename = f'{slug}.md'
+    return send_from_directory(public_dir, filename)
+
+
+@app.route('/sitemap.xml')
+def dynamic_sitemap():
+    public_dir = os.path.join(os.path.dirname(__file__), 'public')
+    md_files = glob.glob(os.path.join(public_dir, '*.md'))
+    base_url = request.host_url.rstrip('/')
+    urls = []
+    for md_file in md_files:
+        slug = os.path.splitext(os.path.basename(md_file))[0]
+        loc = f'{base_url}/blog/{slug}'
+        lastmod = datetime.fromtimestamp(
+            os.path.getmtime(md_file)).strftime('%Y-%m-%d')
+        urls.append(
+            f'  <url>\n    <loc>{loc}</loc>\n    <lastmod>{lastmod}</lastmod>\n  </url>')
+    xml = f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{chr(10).join(urls)}\n</urlset>'
+    return Response(xml, mimetype='application/xml')
+
+
+@app.route('/public/<path:filename>')
+def serve_public_file(filename):
+    public_dir = os.path.join(os.path.dirname(__file__), 'public')
+    return send_from_directory(public_dir, filename)
+
 
 if __name__ == "__main__":
     CYAN = "\033[96m"
@@ -103,7 +156,8 @@ if __name__ == "__main__":
     print(f"{CYAN}╚══════════════════════════════════════════════════════════════════════╝{RESET}")
     print()
 
-    print(f"  {YELLOW}{BOLD}[BOOT]{RESET} {DIM}JavaRena v2.0 — Interactive Terminal Protocol{RESET}")
+    print(
+        f"  {YELLOW}{BOLD}[BOOT]{RESET} {DIM}JavaRena v2.0 — Interactive Terminal Protocol{RESET}")
     print()
 
     os_label = f"{SYSTEM}"
@@ -116,7 +170,7 @@ if __name__ == "__main__":
     _boot_step("Detecting host OS", os_label)
 
     java_available = jc.find_java()
-    
+
     if java_available:
         _boot_step("Locating javac binary", jc.JAVAC_PATH)
         jvm_ver = get_java_version(jc.JAVA_PATH)
@@ -127,13 +181,16 @@ if __name__ == "__main__":
 
     _boot_step("Raising Flask + Socket.IO server", "Port 5000")
     _boot_step("Mounting API endpoints", "Ready")
-    _boot_step("Mounting Frontend (SPA)", dist_path if os.path.exists(dist_path) else "NOT FOUND")
-    _boot_step("Initializing interactive terminal engine", "xterm.js + WebSocket")
+    _boot_step("Mounting Frontend (SPA)",
+               dist_path if os.path.exists(dist_path) else "NOT FOUND")
+    _boot_step("Initializing interactive terminal engine",
+               "xterm.js + WebSocket")
 
     init_share_db()
     _boot_step("Initializing share database", "SQLite ready")
 
-    cleanup_thread = threading.Thread(target=cleanup_expired_shares, daemon=True)
+    cleanup_thread = threading.Thread(
+        target=cleanup_expired_shares, daemon=True)
     cleanup_thread.start()
     _boot_step("Starting cleanup daemon", "Background task active")
 
@@ -142,7 +199,8 @@ if __name__ == "__main__":
     print()
 
     if not java_available:
-        print(f"  {YELLOW}{BOLD}⚠  WARNING:{RESET}{YELLOW} Java compiler (javac) not found!{RESET}")
+        print(
+            f"  {YELLOW}{BOLD}⚠  WARNING:{RESET}{YELLOW} Java compiler (javac) not found!{RESET}")
         print()
 
     print(f"  {MAGENTA}{BOLD}>>> Listening on http://localhost:5000{RESET}")
@@ -150,10 +208,11 @@ if __name__ == "__main__":
 
     if os.environ.get('FLASK_ENV') == 'development' or IS_WINDOWS:
         # Development mode
-        socketio.run(app, host="0.0.0.0", port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
+        socketio.run(app, host="0.0.0.0", port=5000, debug=False,
+                     use_reloader=False, allow_unsafe_werkzeug=True)
     else:
         # Production mode using Waitress
         from waitress import serve
-        print(f"  {GREEN}{BOLD}[PRODUCTION]{RESET} {BOLD}Serving with Waitress...{RESET}")
+        print(
+            f"  {GREEN}{BOLD}[PRODUCTION]{RESET} {BOLD}Serving with Waitress...{RESET}")
         serve(app, host="0.0.0.0", port=5000)
-

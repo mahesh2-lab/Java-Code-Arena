@@ -60,6 +60,7 @@ def register_socket_events(socketio):
         _kill_process(sid)
 
         code = data.get('code', '').strip()
+        print(f"[SOCKET] Received code to run from sid={sid}, length={len(code)}")
         if not code:
             emit('terminal:error', {'message': 'No code provided'})
             return

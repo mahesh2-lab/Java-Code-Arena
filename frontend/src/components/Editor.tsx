@@ -295,7 +295,9 @@ const EditorSkeleton: React.FC<{ theme: Theme }> = ({ theme }) => {
   const isDark = theme === "dark";
   const bgColor = isDark ? "#16171f" : "#ffffff";
   const skeletonColor = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)";
-  const glossColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.6)";
+  const glossColor = isDark
+    ? "rgba(255,255,255,0.08)"
+    : "rgba(255,255,255,0.6)";
 
   return (
     <div
@@ -366,6 +368,13 @@ export const Editor: React.FC<EditorProps> = ({
   const [lineNumbers, setLineNumbers] = React.useState<boolean>(
     () => localStorage.getItem("editor_lineNumbers") !== "false",
   );
+
+  // Extract Java class name from code
+  const getJavaClassName = (code: string): string => {
+    const match = code.match(/public\s+class\s+([A-Za-z_][A-Za-z0-9_]*)/);
+    return match ? match[1] : "Main";
+  };
+  const javaClassName = getJavaClassName(code);
   const [ligatures, setLigatures] = React.useState<boolean>(
     () => localStorage.getItem("editor_ligatures") !== "false",
   );
@@ -692,7 +701,11 @@ export const Editor: React.FC<EditorProps> = ({
     editor.addAction({
       id: "format-code-action",
       label: "Format Code",
-      keybindings: [monacoInstance.KeyMod.Alt | monacoInstance.KeyMod.Shift | monacoInstance.KeyCode.KeyF],
+      keybindings: [
+        monacoInstance.KeyMod.Alt |
+          monacoInstance.KeyMod.Shift |
+          monacoInstance.KeyCode.KeyF,
+      ],
       contextMenuGroupId: "navigation",
       contextMenuOrder: 1.5,
       run: () => {
@@ -745,7 +758,7 @@ export const Editor: React.FC<EditorProps> = ({
     setFontSize(next);
     updateSetting("fontSize", next, {
       fontSize: next,
-      lineHeight: Math.floor(next * 1.6)
+      lineHeight: Math.floor(next * 1.6),
     });
   };
 
@@ -871,7 +884,7 @@ export const Editor: React.FC<EditorProps> = ({
               fontFamily: "'JetBrains Mono', monospace",
             }}
           >
-            Main.java
+            {javaClassName}.java
           </span>
           <div
             className="w-1 h-1 rounded-full ml-0.5"
@@ -958,14 +971,15 @@ export const Editor: React.FC<EditorProps> = ({
               <PopoverContent
                 align="end"
                 sideOffset={8}
-                className="w-[240px] p-0 border-0 overflow-hidden"
+                className="w-60 p-0 border-0 overflow-hidden"
                 style={{
                   background: theme === "dark" ? "#1a1b26" : "#ffffff",
                   border: `1px solid ${theme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)"}`,
                   borderRadius: 10,
-                  boxShadow: theme === "dark"
-                    ? "0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)"
-                    : "0 10px 40px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)",
+                  boxShadow:
+                    theme === "dark"
+                      ? "0 10px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)"
+                      : "0 10px 40px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)",
                 }}
               >
                 <div
@@ -974,47 +988,134 @@ export const Editor: React.FC<EditorProps> = ({
                     borderBottom: `1px solid ${theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)"}`,
                   }}
                 >
-                  <Settings2 className="w-4 h-4" style={{ color: theme === "dark" ? "#10b981" : "#16a34a" }} />
-                  <span className="text-sm font-semibold" style={{ color: theme === "dark" ? "#c0caf5" : "#1e293b" }}>
+                  <Settings2
+                    className="w-4 h-4"
+                    style={{ color: theme === "dark" ? "#10b981" : "#16a34a" }}
+                  />
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: theme === "dark" ? "#c0caf5" : "#1e293b" }}
+                  >
                     Editor Settings
                   </span>
                 </div>
-                <div className="py-2.5 px-3.5 space-y-3 max-h-[360px] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                <div
+                  className="py-2.5 px-3.5 space-y-3 max-h-90 overflow-y-auto"
+                  style={{ scrollbarWidth: "thin" }}
+                >
                   <SettingRow label="Font Size" theme={theme}>
                     <div className="flex items-center gap-1.5">
-                      <SettingSmallBtn onClick={() => handleFontSize(-1)} theme={theme}><Minus className="w-3 h-3" /></SettingSmallBtn>
-                      <span className="text-xs font-mono w-7 text-center tabular-nums" style={{ color: theme === "dark" ? "#c0caf5" : "#1e293b" }}>{fontSize}</span>
-                      <SettingSmallBtn onClick={() => handleFontSize(1)} theme={theme}><Plus className="w-3 h-3" /></SettingSmallBtn>
+                      <SettingSmallBtn
+                        onClick={() => handleFontSize(-1)}
+                        theme={theme}
+                      >
+                        <Minus className="w-3 h-3" />
+                      </SettingSmallBtn>
+                      <span
+                        className="text-xs font-mono w-7 text-center tabular-nums"
+                        style={{
+                          color: theme === "dark" ? "#c0caf5" : "#1e293b",
+                        }}
+                      >
+                        {fontSize}
+                      </span>
+                      <SettingSmallBtn
+                        onClick={() => handleFontSize(1)}
+                        theme={theme}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </SettingSmallBtn>
                     </div>
                   </SettingRow>
                   <SettingRow label="Tab Size" theme={theme}>
                     <div className="flex items-center gap-1">
                       {[2, 4, 8].map((size) => (
-                        <button key={size} onClick={() => handleTabSize(size)} className="px-2.5 py-1 rounded-md text-[11px] font-mono font-medium transition-all"
+                        <button
+                          key={size}
+                          onClick={() => handleTabSize(size)}
+                          className="px-2.5 py-1 rounded-md text-[11px] font-mono font-medium transition-all"
                           style={{
-                            background: tabSize === size ? (theme === "dark" ? "#10b981" : "#16a34a") : (theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"),
-                            color: tabSize === size ? "#fff" : (theme === "dark" ? "#8b949e" : "#64748b"),
-                          }}>{size}</button>
+                            background:
+                              tabSize === size
+                                ? theme === "dark"
+                                  ? "#10b981"
+                                  : "#16a34a"
+                                : theme === "dark"
+                                  ? "rgba(255,255,255,0.06)"
+                                  : "rgba(0,0,0,0.05)",
+                            color:
+                              tabSize === size
+                                ? "#fff"
+                                : theme === "dark"
+                                  ? "#8b949e"
+                                  : "#64748b",
+                          }}
+                        >
+                          {size}
+                        </button>
                       ))}
                     </div>
                   </SettingRow>
                   <SettingRow label="Cursor" theme={theme}>
-                    <StyledSelect value={cursorStyle} onChange={(e) => handleCursorStyle(e.target.value)} theme={theme}>
-                      <option value="line">Line</option><option value="block">Block</option><option value="underline">Underline</option>
-                      <option value="line-thin">Thin Line</option><option value="block-outline">Block Outline</option><option value="underline-thin">Thin Underline</option>
+                    <StyledSelect
+                      value={cursorStyle}
+                      onChange={(e) => handleCursorStyle(e.target.value)}
+                      theme={theme}
+                    >
+                      <option value="line">Line</option>
+                      <option value="block">Block</option>
+                      <option value="underline">Underline</option>
+                      <option value="line-thin">Thin Line</option>
+                      <option value="block-outline">Block Outline</option>
+                      <option value="underline-thin">Thin Underline</option>
                     </StyledSelect>
                   </SettingRow>
                   <SettingRow label="Whitespace" theme={theme}>
-                    <StyledSelect value={whitespace} onChange={(e) => handleWhitespace(e.target.value)} theme={theme}>
-                      <option value="none">None</option><option value="boundary">Boundary</option><option value="selection">Selection</option>
-                      <option value="trailing">Trailing</option><option value="all">All</option>
+                    <StyledSelect
+                      value={whitespace}
+                      onChange={(e) => handleWhitespace(e.target.value)}
+                      theme={theme}
+                    >
+                      <option value="none">None</option>
+                      <option value="boundary">Boundary</option>
+                      <option value="selection">Selection</option>
+                      <option value="trailing">Trailing</option>
+                      <option value="all">All</option>
                     </StyledSelect>
                   </SettingRow>
-                  <div style={{ height: 1, background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)" }} />
-                  <SettingsToggle label="Minimap" checked={minimap} onChange={handleMinimap} theme={theme} />
-                  <SettingsToggle label="Line Numbers" checked={lineNumbers} onChange={handleLineNumbers} theme={theme} />
-                  <SettingsToggle label="Font Ligatures" checked={ligatures} onChange={handleLigatures} theme={theme} />
-                  <SettingsToggle label="Bracket Colors" checked={bracketColors} onChange={handleBracketColors} theme={theme} />
+                  <div
+                    style={{
+                      height: 1,
+                      background:
+                        theme === "dark"
+                          ? "rgba(255,255,255,0.06)"
+                          : "rgba(0,0,0,0.07)",
+                    }}
+                  />
+                  <SettingsToggle
+                    label="Minimap"
+                    checked={minimap}
+                    onChange={handleMinimap}
+                    theme={theme}
+                  />
+                  <SettingsToggle
+                    label="Line Numbers"
+                    checked={lineNumbers}
+                    onChange={handleLineNumbers}
+                    theme={theme}
+                  />
+                  <SettingsToggle
+                    label="Font Ligatures"
+                    checked={ligatures}
+                    onChange={handleLigatures}
+                    theme={theme}
+                  />
+                  <SettingsToggle
+                    label="Bracket Colors"
+                    checked={bracketColors}
+                    onChange={handleBracketColors}
+                    theme={theme}
+                  />
                 </div>
               </PopoverContent>
             </Popover>
@@ -1022,56 +1123,161 @@ export const Editor: React.FC<EditorProps> = ({
 
           {isMobile && (
             <Drawer open={settingsOpen} onOpenChange={setSettingsOpen}>
-              <DrawerContent className="border-0 p-0 overflow-hidden" style={{ background: theme === "dark" ? "#1a1b26" : "#ffffff" }}>
+              <DrawerContent
+                className="border-0 p-0 overflow-hidden"
+                style={{ background: theme === "dark" ? "#1a1b26" : "#ffffff" }}
+              >
                 <DrawerTitle className="sr-only">Editor Settings</DrawerTitle>
-                <DrawerDescription className="sr-only">Adjust editor preferences</DrawerDescription>
-                <div className="px-5 py-3.5 flex items-center gap-2.5" style={{ borderBottom: `1px solid ${theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)"}` }}>
-                  <Settings2 className="w-4 h-4" style={{ color: theme === "dark" ? "#10b981" : "#16a34a" }} />
-                  <span className="text-sm font-semibold" style={{ color: theme === "dark" ? "#c0caf5" : "#1e293b" }}>Editor Settings</span>
+                <DrawerDescription className="sr-only">
+                  Adjust editor preferences
+                </DrawerDescription>
+                <div
+                  className="px-5 py-3.5 flex items-center gap-2.5"
+                  style={{
+                    borderBottom: `1px solid ${theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)"}`,
+                  }}
+                >
+                  <Settings2
+                    className="w-4 h-4"
+                    style={{ color: theme === "dark" ? "#10b981" : "#16a34a" }}
+                  />
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: theme === "dark" ? "#c0caf5" : "#1e293b" }}
+                  >
+                    Editor Settings
+                  </span>
                 </div>
-                <div className="py-4 px-5 space-y-5 max-h-[65vh] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+                <div
+                  className="py-4 px-5 space-y-5 max-h-[65vh] overflow-y-auto"
+                  style={{ scrollbarWidth: "thin" }}
+                >
                   <SettingRow label="Font Size" theme={theme}>
                     <div className="flex items-center gap-2">
-                      <SettingSmallBtn onClick={() => handleFontSize(-1)} theme={theme} mobile><Minus className="w-3.5 h-3.5" /></SettingSmallBtn>
-                      <span className="text-sm font-mono w-8 text-center tabular-nums" style={{ color: theme === "dark" ? "#c0caf5" : "#1e293b" }}>{fontSize}</span>
-                      <SettingSmallBtn onClick={() => handleFontSize(1)} theme={theme} mobile><Plus className="w-3.5 h-3.5" /></SettingSmallBtn>
+                      <SettingSmallBtn
+                        onClick={() => handleFontSize(-1)}
+                        theme={theme}
+                        mobile
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </SettingSmallBtn>
+                      <span
+                        className="text-sm font-mono w-8 text-center tabular-nums"
+                        style={{
+                          color: theme === "dark" ? "#c0caf5" : "#1e293b",
+                        }}
+                      >
+                        {fontSize}
+                      </span>
+                      <SettingSmallBtn
+                        onClick={() => handleFontSize(1)}
+                        theme={theme}
+                        mobile
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </SettingSmallBtn>
                     </div>
                   </SettingRow>
                   <SettingRow label="Tab Size" theme={theme}>
                     <div className="flex items-center gap-1.5">
                       {[2, 4, 8].map((size) => (
-                        <button key={size} onClick={() => handleTabSize(size)} className="px-3.5 py-1.5 rounded-md text-xs font-mono font-medium transition-all"
+                        <button
+                          key={size}
+                          onClick={() => handleTabSize(size)}
+                          className="px-3.5 py-1.5 rounded-md text-xs font-mono font-medium transition-all"
                           style={{
-                            background: tabSize === size ? (theme === "dark" ? "#10b981" : "#16a34a") : (theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)"),
-                            color: tabSize === size ? "#fff" : (theme === "dark" ? "#8b949e" : "#64748b"),
-                          }}>{size}</button>
+                            background:
+                              tabSize === size
+                                ? theme === "dark"
+                                  ? "#10b981"
+                                  : "#16a34a"
+                                : theme === "dark"
+                                  ? "rgba(255,255,255,0.06)"
+                                  : "rgba(0,0,0,0.05)",
+                            color:
+                              tabSize === size
+                                ? "#fff"
+                                : theme === "dark"
+                                  ? "#8b949e"
+                                  : "#64748b",
+                          }}
+                        >
+                          {size}
+                        </button>
                       ))}
                     </div>
                   </SettingRow>
                   <SettingRow label="Cursor" theme={theme}>
-                    <StyledSelect value={cursorStyle} onChange={(e) => handleCursorStyle(e.target.value)} theme={theme} mobile>
-                      <option value="line">Line</option><option value="block">Block</option><option value="underline">Underline</option>
-                      <option value="line-thin">Thin Line</option><option value="block-outline">Block Outline</option><option value="underline-thin">Thin Underline</option>
+                    <StyledSelect
+                      value={cursorStyle}
+                      onChange={(e) => handleCursorStyle(e.target.value)}
+                      theme={theme}
+                      mobile
+                    >
+                      <option value="line">Line</option>
+                      <option value="block">Block</option>
+                      <option value="underline">Underline</option>
+                      <option value="line-thin">Thin Line</option>
+                      <option value="block-outline">Block Outline</option>
+                      <option value="underline-thin">Thin Underline</option>
                     </StyledSelect>
                   </SettingRow>
                   <SettingRow label="Whitespace" theme={theme}>
-                    <StyledSelect value={whitespace} onChange={(e) => handleWhitespace(e.target.value)} theme={theme} mobile>
-                      <option value="none">None</option><option value="boundary">Boundary</option><option value="selection">Selection</option>
-                      <option value="trailing">Trailing</option><option value="all">All</option>
+                    <StyledSelect
+                      value={whitespace}
+                      onChange={(e) => handleWhitespace(e.target.value)}
+                      theme={theme}
+                      mobile
+                    >
+                      <option value="none">None</option>
+                      <option value="boundary">Boundary</option>
+                      <option value="selection">Selection</option>
+                      <option value="trailing">Trailing</option>
+                      <option value="all">All</option>
                     </StyledSelect>
                   </SettingRow>
-                  <div style={{ height: 1, background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.07)" }} />
-                  <SettingsToggle label="Minimap" checked={minimap} onChange={handleMinimap} theme={theme} mobile />
-                  <SettingsToggle label="Line Numbers" checked={lineNumbers} onChange={handleLineNumbers} theme={theme} mobile />
-                  <SettingsToggle label="Font Ligatures" checked={ligatures} onChange={handleLigatures} theme={theme} mobile />
-                  <SettingsToggle label="Bracket Colors" checked={bracketColors} onChange={handleBracketColors} theme={theme} mobile />
+                  <div
+                    style={{
+                      height: 1,
+                      background:
+                        theme === "dark"
+                          ? "rgba(255,255,255,0.06)"
+                          : "rgba(0,0,0,0.07)",
+                    }}
+                  />
+                  <SettingsToggle
+                    label="Minimap"
+                    checked={minimap}
+                    onChange={handleMinimap}
+                    theme={theme}
+                    mobile
+                  />
+                  <SettingsToggle
+                    label="Line Numbers"
+                    checked={lineNumbers}
+                    onChange={handleLineNumbers}
+                    theme={theme}
+                    mobile
+                  />
+                  <SettingsToggle
+                    label="Font Ligatures"
+                    checked={ligatures}
+                    onChange={handleLigatures}
+                    theme={theme}
+                    mobile
+                  />
+                  <SettingsToggle
+                    label="Bracket Colors"
+                    checked={bracketColors}
+                    onChange={handleBracketColors}
+                    theme={theme}
+                    mobile
+                  />
                 </div>
               </DrawerContent>
             </Drawer>
           )}
         </div>
-
-
       </div>
       {/* ── Monaco Editor ── */}
       <div className="flex-1 min-h-0 relative">
@@ -1157,7 +1363,7 @@ export const Editor: React.FC<EditorProps> = ({
             </span>
           </div>
           <div
-            className="w-[1px] h-3"
+            className="w-px h-3"
             style={{ background: "var(--border-subtle)" }}
           />
           <span
@@ -1170,17 +1376,31 @@ export const Editor: React.FC<EditorProps> = ({
 
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-3 responsive-hide-mobile">
-            <span className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>
+            <span
+              className="text-[11px] font-medium"
+              style={{ color: "var(--text-muted)" }}
+            >
               {lineCount} lines
             </span>
-            <span className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>
+            <span
+              className="text-[11px] font-medium"
+              style={{ color: "var(--text-muted)" }}
+            >
               Tab: {tabSize}
             </span>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <IconBtn onClick={() => { }} title="Output">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <IconBtn onClick={() => {}} title="Output">
+              <svg
+                className="w-3.5 h-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M4 17l6-6-6-6" />
                 <path d="M12 19h8" />
               </svg>
@@ -1212,7 +1432,7 @@ export const Editor: React.FC<EditorProps> = ({
         output={output}
         theme={theme}
       />
-    </div >
+    </div>
   );
 };
 
