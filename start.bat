@@ -6,9 +6,11 @@ echo =========================================
 echo.
 
 REM Check if Node modules are installed
-if not exist "node_modules" (
+if not exist "frontend\node_modules" (
     echo Installing Node dependencies...
+    cd frontend
     call npm install
+    cd ..
     if errorlevel 1 (
         echo Error installing npm packages
         pause
@@ -19,7 +21,9 @@ if not exist "node_modules" (
 REM Build React frontend
 echo.
 echo Building React frontend...
+cd frontend
 call npm run build
+cd ..
 if errorlevel 1 (
     echo Error building React app
     pause
@@ -27,15 +31,17 @@ if errorlevel 1 (
 )
 
 REM Check if Python dependencies are installed
-if not exist ".venv" (
+if not exist "backend\.venv" (
     echo.
     echo Creating Python virtual environment...
+    cd backend
     python -m venv .venv
     call .venv\Scripts\activate.bat
     echo Installing Python dependencies...
     pip install -r requirements.txt
+    cd ..
 ) else (
-    call .venv\Scripts\activate.bat
+    call backend\.venv\Scripts\activate.bat
 )
 
 REM Start the server
@@ -45,6 +51,8 @@ echo Starting Java Code Arena Server
 echo =========================================
 echo Open your browser: http://localhost:5000
 echo.
+cd backend
 python server.py
+cd ..
 
 pause

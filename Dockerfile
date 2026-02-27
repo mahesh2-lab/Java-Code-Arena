@@ -6,10 +6,10 @@
 # ── Stage 1: Build the React/Vite frontend ──────────────
 FROM node:20-slim AS frontend-builder
 
-WORKDIR /app
+WORKDIR /app/frontend
 
 # Install dependencies first (cache layer)
-COPY package.json package-lock.json* pnpm-lock.yaml* ./
+COPY frontend/package.json frontend/package-lock.json* frontend/pnpm-lock.yaml* ./
 
 # Use npm ci if lock exists, otherwise npm install
 RUN if [ -f pnpm-lock.yaml ]; then \
@@ -20,13 +20,8 @@ RUN if [ -f pnpm-lock.yaml ]; then \
     npm install; \
     fi
 
-# Copy source and build
-COPY tsconfig.json vite.config.ts ./
-# Copy tailwind config if it exists
-COPY tailwind.config.* ./
-COPY src/ ./src/
-COPY public/ ./public/
-COPY index.html ./
+# Copy everything from frontend and build
+COPY frontend/ ./
 
 RUN npm run build
 
@@ -71,20 +66,22 @@ RUN echo "=== Runtime Versions ===" && \
 WORKDIR /app
 
 # ── Install Python dependencies ─────────────────────────
-# Copy Python dependency files
-COPY pyproject.toml requirements.txt ./
+# Copy Python dependency files from backend
+COPY backend/pyproject.toml backend/requirements.txt ./
 
-# Create virtual environment and install Flask + Flask-CORS
+# Create virtual environment and install dependencies
 RUN python3 -m venv /app/venv
 ENV PATH="/app/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# ── Copy the Python server ──────────────────────────────
-COPY server.py codeReview.py ./
+# ── Copy the Python server files ────────────────────────
+COPY backend/*.py ./
+# Copy shares.db if it exists (though usually it should be a volume)
+# COPY backend/shares.db ./
 
 # ── Copy the built frontend from Stage 1 ────────────────
-COPY --from=frontend-builder /app/dist ./dist
+COPY --from=frontend-builder /app/frontend/dist ./dist
 
 # ── Environment variables ───────────────────────────────
 # OPENROUTER_API_KEY should be passed at runtime via docker-compose or docker run -e
