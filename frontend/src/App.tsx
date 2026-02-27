@@ -1,13 +1,6 @@
-import React, {
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-  Suspense,
-} from "react";
+import React, { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import { Navbar } from "./components/NavBar";
-import { Route, Switch } from "wouter";
-import { Editor } from "./components/Editor";
+const Editor = React.lazy(() => import("./components/Editor").then(m => ({ default: m.Editor })));
 import type { XTermTerminalRef } from "./components/XTermTerminal";
 import { useIsMobile } from "./hooks/use-mobile";
 import { Toaster } from "./components/ui/toaster";
@@ -18,25 +11,13 @@ import {
   GitGraph,
   Maximize2,
   Loader2,
-  Github,
+  Github
 } from "lucide-react";
 import { useToast } from "./hooks/use-toast";
 import { useHealthCheck, useCompile, useVisualize } from "./hooks/use-java-api";
-const TerminalPanel = React.lazy(() =>
-  import("./components/TerminalPanel").then((m) => ({
-    default: m.TerminalPanel,
-  })),
-);
+const TerminalPanel = React.lazy(() => import("./components/TerminalPanel").then(m => ({ default: m.TerminalPanel })));
 import type { TerminalPanelProps } from "./components/TerminalPanel";
 import { StatusBadge } from "./components/StatusBadge";
-import DockerForJavaBeginners from "./pages/docker-for-java-beginners";
-import DockerizingSpringBootGuide from "./pages/dockerizing-spring-boot-guide";
-import IntroductionToJavaEcosystem from "./pages/introduction-to-java-ecosystem";
-import JavaCollectionsFrameworkBeginners from "./pages/java-collections-framework-beginners";
-import SpringBootBeginnersGuide from "./pages/spring-boot-beginners-guide";
-import UnderstandingJavaJVM from "./pages/understanding-java-jvm";
-import NotFound from "./pages/not-found";
-// import BlogPage from "./pages/blog";
 
 const DEFAULT_CODE = `public class Main {
     public static void main(String[] args) {
@@ -83,16 +64,16 @@ export default function App() {
   const [execTime, setExecTime] = useState<number | null>(null);
   const [serverReady, setServerReady] = useState<boolean>(false);
   const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem("app_theme") as Theme) || "dark",
+    () => (localStorage.getItem("app_theme") as Theme) || "dark"
   );
   const [showConsole, setShowConsole] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [editorWidth, setEditorWidth] = useState<number>(
-    () => Number(localStorage.getItem("editor_width")) || 55,
+    () => Number(localStorage.getItem("editor_width")) || 55
   );
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [mobileActiveTab, setMobileActiveTab] = useState<"editor" | "console">(
-    "editor",
+    "editor"
   );
 
   const xtermRef = useRef<XTermTerminalRef>(null);
@@ -100,9 +81,7 @@ export default function App() {
   const { toast } = useToast();
   const isReady = true;
 
-  const [hasMountedConsole, setHasMountedConsole] = useState<boolean>(
-    !isMobile && showConsole,
-  );
+  const [hasMountedConsole, setHasMountedConsole] = useState<boolean>(!isMobile && showConsole);
   const [stdinInput, setStdinInput] = useState<string>("");
   const [isForkedSession, setIsForkedSession] = useState<boolean>(false);
   const [errorReview, setErrorReview] = useState<ErrorReview | null>(null);
@@ -128,13 +107,13 @@ export default function App() {
             text: line,
             type: "info" as const,
             timestamp: Date.now(),
-          })),
+          }))
         );
       }
       setTimeout(() => {
         log(
           "👋 You're viewing a shared code snippet. Click Run to execute or edit the code!",
-          "info",
+          "info"
         );
       }, 500);
     }
@@ -176,7 +155,7 @@ export default function App() {
       const rect = mainEl.getBoundingClientRect();
       const pct = Math.max(
         20,
-        Math.min(80, ((e.clientX - rect.left) / rect.width) * 100),
+        Math.min(80, ((e.clientX - rect.left) / rect.width) * 100)
       );
       setEditorWidth(pct);
       localStorage.setItem("editor_width", pct.toString());
@@ -203,7 +182,7 @@ export default function App() {
     (text: string, type: "info" | "success" | "error" = "info") => {
       setOutput((prev) => [...prev, { text, type, timestamp: Date.now() }]);
     },
-    [],
+    []
   );
 
   // ── API Hooks ──────────────────────────────────────────
@@ -238,14 +217,11 @@ export default function App() {
     try {
       if (!serverReady) {
         throw new Error(
-          "Java Compiler Server not available. Make sure Python server is running.",
+          "Java Compiler Server not available. Make sure Python server is running."
         );
       }
 
-      const result = await compileMutation.mutateAsync({
-        code,
-        stdin: stdinInput,
-      });
+      const result = await compileMutation.mutateAsync({ code, stdin: stdinInput });
 
       if (!result.success) {
         log(`Error: ${result.error}`, "error");
@@ -265,22 +241,13 @@ export default function App() {
     } catch (err) {
       log(
         `Error: ${err instanceof Error ? err.message : String(err)}`,
-        "error",
+        "error"
       );
     } finally {
       setExecTime(Math.round(performance.now() - start));
       setIsRunning(false);
     }
-  }, [
-    isRunning,
-    code,
-    log,
-    serverReady,
-    isMobile,
-    stdinInput,
-    interactiveMode,
-    compileMutation,
-  ]);
+  }, [isRunning, code, log, serverReady, isMobile, stdinInput, interactiveMode, compileMutation]);
 
   const handleStop = useCallback(() => {
     xtermRef.current?.kill();
@@ -315,10 +282,13 @@ export default function App() {
     setAiReview(null);
   }, []);
 
-  const handleStatusChange = useCallback((s: TerminalStatus) => {
-    setTerminalStatus(s);
-    setIsRunning(s === "running" || s === "compiling");
-  }, []);
+  const handleStatusChange = useCallback(
+    (s: TerminalStatus) => {
+      setTerminalStatus(s);
+      setIsRunning(s === "running" || s === "compiling");
+    },
+    []
+  );
 
   // ── Visualize ─────────────────────────────────────────────
   const handleVisualize = useCallback(async () => {
@@ -382,6 +352,7 @@ export default function App() {
     },
   };
 
+
   // ── Render ────────────────────────────────────────────────
   return (
     <div
@@ -417,194 +388,160 @@ export default function App() {
         noIndex={isForkedSession}
       />
 
-      <Switch>
-        <Route
-          path="/"
-          component={() => (
-            <main
-              className="flex overflow-hidden responsive-main"
-              role="main"
-              aria-label="Java code editor and console output"
-              style={{ flex: "1 1 0", minHeight: 0 }}
+      <Navbar
+        theme={theme}
+        onThemeChange={handleThemeChange}
+        onRun={handleRun}
+        isRunning={effectivelyRunning}
+        isReady={isReady}
+        showConsole={showConsole}
+        onToggleConsole={() => setShowConsole(!showConsole)}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={toggleFullscreen}
+      />
+
+      <main
+        className="flex overflow-hidden responsive-main"
+        role="main"
+        aria-label="Java code editor and console output"
+        style={{ flex: "1 1 0", minHeight: 0 }}
+      >
+        {isMobile ? (
+          // ═══ Mobile: Tabbed ═══
+          <div className="flex flex-col w-full h-full">
+            <nav
+              className="flex shrink-0"
+              role="tablist"
+              aria-label="Editor and output tabs"
+              style={{
+                background: "var(--bg-panel-header)",
+                borderBottom: "1px solid var(--border-subtle)",
+              }}
             >
-              {isMobile ? (
-                // ═══ Mobile: Tabbed ═══
-                <div className="flex flex-col w-full h-full">
-                  <nav
-                    className="flex shrink-0"
-                    role="tablist"
-                    aria-label="Editor and output tabs"
-                    style={{
-                      background: "var(--bg-panel-header)",
-                      borderBottom: "1px solid var(--border-subtle)",
-                    }}
-                  >
-                    {(["editor", "console"] as const).map((tab) => (
-                      <button
-                        key={tab}
-                        role="tab"
-                        aria-selected={mobileActiveTab === tab}
-                        onClick={() => setMobileActiveTab(tab)}
-                        className="flex-1 py-2 text-[13px] font-bold tracking-wider transition-all duration-200 relative"
-                        style={{
-                          color:
-                            mobileActiveTab === tab
-                              ? "var(--logo-accent-from)"
-                              : "var(--text-muted)",
-                          background: "transparent",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        {tab === "console" ? "Terminal" : "Editor"}
-                        {mobileActiveTab === tab && (
-                          <div
-                            className="absolute bottom-0 left-0 right-0 h-[2.5px] rounded-t-full"
-                            style={{ background: "var(--logo-accent-from)" }}
-                          />
-                        )}
-                      </button>
-                    ))}
-                  </nav>
-
-                  <div className="flex-1 overflow-hidden relative">
-                    <section
-                      className="h-full w-full"
-                      style={{
-                        display:
-                          mobileActiveTab === "editor" ? "block" : "none",
-                      }}
-                    >
-                      <Suspense
-                        fallback={
-                          <div className="flex w-full h-full items-center justify-center text-slate-500">
-                            <Loader2 className="animate-spin w-6 h-6 mr-2" />{" "}
-                            Loading editor...
-                          </div>
-                        }
-                      >
-                        <Editor
-                          code={code}
-                          onChange={handleCodeChange}
-                          theme={theme}
-                          output={output.map((o) => o.text).join("\n")}
-                        />
-                      </Suspense>
-                    </section>
-                    <section
-                      className="h-full w-full"
-                      style={{
-                        display:
-                          mobileActiveTab === "console" ? "block" : "none",
-                      }}
-                    >
-                      {hasMountedConsole ? (
-                        <Suspense
-                          fallback={
-                            <div className="flex w-full h-full items-center justify-center text-slate-500">
-                              <Loader2 className="animate-spin w-6 h-6 mr-2" />{" "}
-                              Loading terminal...
-                            </div>
-                          }
-                        >
-                          <TerminalPanel {...terminalPanelProps} />
-                        </Suspense>
-                      ) : null}
-                    </section>
-                  </div>
-                </div>
-              ) : (
-                // ═══ Desktop: Split pane ═══
-                <>
-                  <section
-                    aria-label="Java code editor"
-                    className="flex flex-col min-h-0 responsive-editor"
-                    style={{
-                      width: showConsole ? `${editorWidth}%` : "100%",
-                      flexShrink: 0,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <Suspense
-                      fallback={
-                        <div className="flex-1 flex items-center justify-center text-slate-500">
-                          <Loader2 className="animate-spin w-6 h-6 mr-2" />{" "}
-                          Loading editor...
-                        </div>
-                      }
-                    >
-                      <Editor
-                        code={code}
-                        onChange={handleCodeChange}
-                        theme={theme}
-                        output={output.map((o) => o.text).join("\n")}
-                      />
-                    </Suspense>
-                  </section>
-
-                  {showConsole && (
-                    <>
-                      {/* Resizable divider */}
-                      <div
-                        role="separator"
-                        aria-orientation="vertical"
-                        tabIndex={0}
-                        className="theme-divider shrink-0 responsive-divider group"
-                        style={{
-                          width: 5,
-                          cursor: "col-resize",
-                          position: "relative",
-                          background: isDragging
-                            ? "var(--divider-color)"
-                            : "transparent",
-                        }}
-                        onMouseDown={() => setIsDragging(true)}
-                      >
-                        <div
-                          className="absolute inset-y-0 left-1/2 -translate-x-1/2"
-                          style={{
-                            width: 1,
-                            background: "var(--divider-color)",
-                          }}
-                        />
-                        <div
-                          className="absolute inset-y-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                          style={{ background: "var(--divider-color)" }}
-                        />
-                      </div>
-
-                      {/* Terminal / Console panel */}
-                      <section
-                        aria-label="Console output"
-                        className="flex flex-col min-h-0 responsive-console"
-                        style={{
-                          width: `${100 - editorWidth}%`,
-                          flexShrink: 0,
-                          overflow: "hidden",
-                        }}
-                      >
-                        {hasMountedConsole ? (
-                          <Suspense
-                            fallback={
-                              <div className="flex-1 flex items-center justify-center text-slate-500">
-                                <Loader2 className="animate-spin w-6 h-6 mr-2" />{" "}
-                                Loading terminal...
-                              </div>
-                            }
-                          >
-                            <TerminalPanel {...terminalPanelProps} />
-                          </Suspense>
-                        ) : null}
-                      </section>
-                    </>
+              {(["editor", "console"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  role="tab"
+                  aria-selected={mobileActiveTab === tab}
+                  onClick={() => setMobileActiveTab(tab)}
+                  className="flex-1 py-2 text-[13px] font-bold tracking-wider transition-all duration-200 relative"
+                  style={{
+                    color:
+                      mobileActiveTab === tab
+                        ? "var(--logo-accent-from)"
+                        : "var(--text-muted)",
+                    background: "transparent",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {tab === "console" ? "Terminal" : "Editor"}
+                  {mobileActiveTab === tab && (
+                    <div
+                      className="absolute bottom-0 left-0 right-0 h-[2.5px] rounded-t-full"
+                      style={{ background: "var(--logo-accent-from)" }}
+                    />
                   )}
-                </>
-              )}
-            </main>
-          )}
-        />
-        {/* <Route path="/blog/:slug" component={BlogPage} /> */}
-        <Route path="*" component={NotFound} />
-      </Switch>
+                </button>
+              ))}
+            </nav>
+
+            <div className="flex-1 overflow-hidden relative">
+              <section
+                className="h-full w-full"
+                style={{ display: mobileActiveTab === "editor" ? "block" : "none" }}
+              >
+                <Suspense fallback={<div className="flex w-full h-full items-center justify-center text-slate-500"><Loader2 className="animate-spin w-6 h-6 mr-2" /> Loading editor...</div>}>
+                  <Editor
+                    code={code}
+                    onChange={handleCodeChange}
+                    theme={theme}
+                    output={output.map((o) => o.text).join("\n")}
+                  />
+                </Suspense>
+              </section>
+              <section
+                className="h-full w-full"
+                style={{ display: mobileActiveTab === "console" ? "block" : "none" }}
+              >
+                {hasMountedConsole ? (
+                  <Suspense fallback={<div className="flex w-full h-full items-center justify-center text-slate-500"><Loader2 className="animate-spin w-6 h-6 mr-2" /> Loading terminal...</div>}>
+                    <TerminalPanel {...terminalPanelProps} />
+                  </Suspense>
+                ) : null}
+              </section>
+            </div>
+          </div>
+        ) : (
+          // ═══ Desktop: Split pane ═══
+          <>
+            <section
+              aria-label="Java code editor"
+              className="flex flex-col min-h-0 responsive-editor"
+              style={{
+                width: showConsole ? `${editorWidth}%` : "100%",
+                flexShrink: 0,
+                overflow: "hidden",
+              }}
+            >
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-slate-500"><Loader2 className="animate-spin w-6 h-6 mr-2" /> Loading editor...</div>}>
+                <Editor
+                  code={code}
+                  onChange={handleCodeChange}
+                  theme={theme}
+                  output={output.map((o) => o.text).join("\n")}
+                />
+              </Suspense>
+            </section>
+
+            {showConsole && (
+              <>
+                {/* Resizable divider */}
+                <div
+                  role="separator"
+                  aria-orientation="vertical"
+                  tabIndex={0}
+                  className="theme-divider shrink-0 responsive-divider group"
+                  style={{
+                    width: 5,
+                    cursor: "col-resize",
+                    position: "relative",
+                    background: isDragging
+                      ? "var(--divider-color)"
+                      : "transparent",
+                  }}
+                  onMouseDown={() => setIsDragging(true)}
+                >
+                  <div
+                    className="absolute inset-y-0 left-1/2 -translate-x-1/2"
+                    style={{ width: 1, background: "var(--divider-color)" }}
+                  />
+                  <div
+                    className="absolute inset-y-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    style={{ background: "var(--divider-color)" }}
+                  />
+                </div>
+
+                {/* Terminal / Console panel */}
+                <section
+                  aria-label="Console output"
+                  className="flex flex-col min-h-0 responsive-console"
+                  style={{
+                    width: `${100 - editorWidth}%`,
+                    flexShrink: 0,
+                    overflow: "hidden",
+                  }}
+                >
+                  {hasMountedConsole ? (
+                    <Suspense fallback={<div className="flex-1 flex items-center justify-center text-slate-500"><Loader2 className="animate-spin w-6 h-6 mr-2" /> Loading terminal...</div>}>
+                      <TerminalPanel {...terminalPanelProps} />
+                    </Suspense>
+                  ) : null}
+                </section>
+              </>
+            )}
+          </>
+        )}
+      </main>
 
       <footer className="sr-only" aria-label="Site information">
         <p>
