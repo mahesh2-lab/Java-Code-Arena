@@ -41,7 +41,16 @@ if _missing:
     sys.exit(1)
 
 # Create Flask app
-app = Flask(__name__)
+# Try to find the dist folder (check same-dir for Docker and ../frontend/dist for local dev)
+base_dir = os.path.dirname(os.path.abspath(__file__))
+dist_path = os.path.join(base_dir, "dist")
+if not os.path.exists(dist_path):
+    dist_path = os.path.abspath(os.path.join(base_dir, "..", "frontend", "dist"))
+
+app = Flask(__name__, 
+            static_folder=dist_path,
+            template_folder=dist_path,
+            static_url_path='')
 app.config['SECRET_KEY'] = SECRET_KEY
 CORS(app, origins="*")
 
@@ -61,6 +70,16 @@ socketio = SocketIO(
 # Register API and Sockets
 register_routes(app)
 register_socket_events(socketio)
+
+# Serve SPA
+from flask import send_from_directory
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == "__main__":
     CYAN = "\033[96m"
@@ -108,6 +127,7 @@ if __name__ == "__main__":
 
     _boot_step("Raising Flask + Socket.IO server", "Port 5000")
     _boot_step("Mounting API endpoints", "Ready")
+    _boot_step("Mounting Frontend (SPA)", dist_path if os.path.exists(dist_path) else "NOT FOUND")
     _boot_step("Initializing interactive terminal engine", "xterm.js + WebSocket")
 
     init_share_db()
